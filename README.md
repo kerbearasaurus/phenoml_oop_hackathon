@@ -25,8 +25,30 @@ This agent provides tools for interacting with a Medplum FHIR server using Pheno
    pip install -r requirements.txt
    ```
 
-3. Set up environment variables for authentication:
+3. Authenticate and set up environment variables:
 
+   a. **Obtain PhenoML Token**:
+   ```bash
+   # Run the PhenoML authentication script
+   python scripts/phenoml_auth.py --email your_email@example.com --password your_password
+   
+   # The script will output a token that you can use in the next step
+   # Alternatively, you can run it with the --save flag to automatically save to .env
+   python scripts/phenoml_auth.py --email your_email@example.com --password your_password --save
+   ```
+
+   b. **Obtain Medplum Token**:
+   ```bash
+   # Run the Medplum authentication script
+   python scripts/medplum_auth.py --client-id your_client_id --client-secret your_client_secret
+   
+   # The script will output a token that you can use in the next step
+   # Alternatively, you can run it with the --save flag to automatically save to .env
+   python scripts/medplum_auth.py --client-id your_client_id --client-secret your_client_secret --save
+   ```
+
+   c. **Set Environment Variables**:
+   If you didn't use the `--save` flag, manually set the environment variables:
    ```bash
    # Required environment variables
    export PHENOML_TOKEN="your_phenoml_access_token" 
