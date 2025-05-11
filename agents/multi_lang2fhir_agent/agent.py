@@ -6,6 +6,7 @@ from google.adk.agents import Agent
 # Define resource types once as a list for validation and documentation
 FHIR_RESOURCE_TYPES = [
     "Patient", 
+    #//TODO: add Practitioner
     "Condition", 
     "Observation", 
     "Encounter",
@@ -18,6 +19,7 @@ FHIR_RESOURCE_TYPES = [
     "QuestionnaireResponse"
 ]
 
+#//TODO: update to support both Medplum and Canvas FHIR APIs
 
 def lang2fhir_and_create(
     natural_language_description: str, 
