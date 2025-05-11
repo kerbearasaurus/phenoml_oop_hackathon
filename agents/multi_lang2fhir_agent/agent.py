@@ -1,29 +1,34 @@
 import requests
 import os
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Literal
 from google.adk.agents import Agent
 
-# Define resource types once as a list for validation and documentation
-FHIR_RESOURCE_TYPES = [
-    "Patient", 
-    #//TODO: add Practitioner
-    "Condition", 
-    "Observation", 
-    "Encounter",
-    "Procedure", 
-    "MedicationRequest",
-    "PlanDefinition",
-    "CarePlan", 
-    "Appointment", 
-    "Questionnaire",
-    "QuestionnaireResponse"
-]
+# Define all FHIR profiles with their corresponding resource types
+FHIR_PROFILES = {
+    "condition-encounter-diagnosis": "Condition",
+    "medicationrequest": "MedicationRequest",
+    "careplan": "CarePlan",
+    "condition-problems-health-concerns": "Condition",
+    "coverage": "Coverage",
+    "encounter": "Encounter",
+    "observation-clinical-result": "Observation",
+    "observation-lab": "Observation",
+    "patient": "Patient",
+    "procedure": "Procedure",
+    "questionnaire": "Questionnaire",
+    "questionnaireresponse": "QuestionnaireResponse",
+    "simple-observation": "Observation",
+    "vital-signs": "Observation"
+}
+
+# Get the valid resource types from the profiles
+FHIR_RESOURCE_TYPES = list(set(FHIR_PROFILES.values()))
 
 #//TODO: update to support both Medplum and Canvas FHIR APIs
 
 def lang2fhir_and_create(
     natural_language_description: str, 
-    resource_type: str,
+    profile: str,
     patient_id: str, 
     version: str = "R4"
 ) -> dict:
@@ -31,8 +36,13 @@ def lang2fhir_and_create(
     
     Args:
         natural_language_description (str): Natural language description of the resource to create.
-        resource_type (str): The FHIR resource type to create (e.g., "Patient", "Condition").
         patient_id (str): The patient ID to associate this resource with.
+        resource_type (str): The specific FHIR profile to use. 
+            Must be one of: condition-encounter-diagnosis, medicationrequest, careplan, 
+            condition-problems-health-concerns, coverage, encounter, observation-clinical-result, 
+            observation-lab, patient, procedure, questionnaire, questionnaireresponse, 
+            simple-observation, vital-signs.
+            Select the most appropriate profile based on the description.
         version (str, optional): FHIR version to use. Defaults to "R4".
         
     Returns:
@@ -58,18 +68,21 @@ def lang2fhir_and_create(
         # Set FHIR server URL
         fhir_server_url = "https://api.medplum.com/fhir/R4"
         
-        # Validate resource type
-        if resource_type not in FHIR_RESOURCE_TYPES and not any(rt.lower() == resource_type.lower() for rt in FHIR_RESOURCE_TYPES):
+        # Validate resource type (profile)
+        if profile not in FHIR_PROFILES:
             return {
                 "status": "error",
-                "error_message": f"Invalid resource type: {resource_type}. Valid types are: {', '.join(FHIR_RESOURCE_TYPES)}"
+                "error_message": f"Invalid profile: {profile}. Valid profiles are: {', '.join(FHIR_PROFILES.keys())}"
             }
+        
+        # Get the base FHIR resource type for this profile
+        base_resource_type = FHIR_PROFILES.get(profile)
         
         # Step 1: Convert natural language to FHIR using lang2fhir
         lang2fhir_url = "https://experiment.app.pheno.ml/lang2fhir/create"
         lang2fhir_payload = {
             "version": version,
-            "resource": resource_type,
+            "resource": profile,
             "text": natural_language_description
         }
         
@@ -85,15 +98,15 @@ def lang2fhir_and_create(
         
         fhir_resource = lang2fhir_response.json()
         
-        # Step 2: Add patient reference to the resource
-        if resource_type.lower() != "patient":
+        # Step 2: Add patient reference to the resource if it's a clinical resource (not a Patient resource)
+        if base_resource_type.lower() != "patient":
             # Add subject reference for clinical resources
             fhir_resource["subject"] = {
                 "reference": f"Patient/{patient_id}"
             }
             
             # For specific resource types that use patient instead of subject
-            if resource_type.lower() in ["encounter", "appointmentresponse", "appointmentrecurrence"]:
+            if base_resource_type.lower() in ["encounter", "appointmentresponse", "appointmentrecurrence"]:
                 fhir_resource["patient"] = {
                     "reference": f"Patient/{patient_id}"
                 }
@@ -104,11 +117,12 @@ def lang2fhir_and_create(
             "Content-Type": "application/json"
         }
         
-        # Ensure resourceType is set correctly
-        fhir_resource["resourceType"] = resource_type
+        # Ensure resourceType is set correctly for Medplum (use the base type, not profile)
+        #//TODO: this might not be necesssary try removing it
+        fhir_resource["resourceType"] = base_resource_type
         
         # Create the resource on the FHIR server
-        fhir_url = f"{fhir_server_url}/{resource_type}"
+        fhir_url = f"{fhir_server_url}/{base_resource_type}"
         fhir_response = requests.post(fhir_url, json=fhir_resource, headers=fhir_headers)
         fhir_response.raise_for_status()
         
@@ -117,7 +131,9 @@ def lang2fhir_and_create(
         return {
             "status": "success",
             "lang2fhir_result": fhir_resource,
-            "fhir_resource": created_resource
+            "fhir_resource": created_resource,
+            "profile_used": profile,
+            "base_resource_type": base_resource_type
         }
     except Exception as e:
         return {
@@ -128,15 +144,14 @@ def lang2fhir_and_create(
 
 def lang2fhir_and_search(
     natural_language_query: str, 
-    patient_id: Optional[str] = None, 
-    resource_type: Optional[str] = None
+    patient_id: Optional[str] = None
 ) -> dict:
     """Converts a natural language query to FHIR search parameters and performs the search in one operation.
     
     Args:
         natural_language_query (str): Natural language search query like "Find all patients with diabetes".
         patient_id (Optional[str], optional): If provided, limits the search to a specific patient.
-        resource_type (Optional[str], optional): If provided, forces a specific resource type.
+        resource_type (Optional[str], optional): If provided, forces a specific resource type or profile.
         
     Returns:
         dict: Search result with status and search results or error message.
@@ -161,23 +176,13 @@ def lang2fhir_and_search(
         # Set FHIR server URL
         fhir_server_url = "https://api.medplum.com/fhir/R4"
         
-        # Validate resource_type if provided
-        if resource_type and resource_type not in FHIR_RESOURCE_TYPES and not any(rt.lower() == resource_type.lower() for rt in FHIR_RESOURCE_TYPES):
-            return {
-                "status": "error",
-                "error_message": f"Invalid resource type: {resource_type}. Valid types are: {', '.join(FHIR_RESOURCE_TYPES)}"
-            }
-        
+
         # Step 1: Convert natural language to FHIR search parameters using lang2fhir
         lang2fhir_url = "https://experiment.app.pheno.ml/lang2fhir/search"
         lang2fhir_payload = {
             "text": natural_language_query
         }
-        
-        # Add resource type to payload if specified
-        if resource_type:
-            lang2fhir_payload["resource"] = resource_type
-        
+
         lang2fhir_headers = {
             "Authorization": f"Bearer {phenoml_token}",
             "Content-Type": "application/json",
@@ -194,19 +199,11 @@ def lang2fhir_and_search(
         detected_resource_type = search_params.get("resourceType")
         params = search_params.get("parameters", {})
         
-        # Use specified resource type if provided, otherwise use detected
-        final_resource_type = resource_type if resource_type else detected_resource_type
-        
-        if not final_resource_type:
-            return {
-                "status": "error",
-                "error_message": "Could not determine resource type from query"
-            }
-            
+
         # Add patient-specific filtering if patient_id is provided
-        if patient_id and final_resource_type.lower() != "patient":
+        if patient_id and detected_resource_type.lower() != "patient":
             # Add appropriate patient filter based on resource type
-            if final_resource_type.lower() in ["encounter", "appointmentresponse"]:
+            if detected_resource_type.lower() in ["encounter", "appointmentresponse"]:
                 params["patient"] = f"Patient/{patient_id}"
             else:
                 params["subject"] = f"Patient/{patient_id}"
@@ -217,7 +214,7 @@ def lang2fhir_and_search(
         }
         
         # Build search URL
-        fhir_url = f"{fhir_server_url}/{final_resource_type}"
+        fhir_url = f"{fhir_server_url}/{detected_resource_type}"
         
         if params:
             query_string = "&".join([f"{key}={value}" for key, value in params.items()])
@@ -232,7 +229,8 @@ def lang2fhir_and_search(
         return {
             "status": "success",
             "search_params": search_params,
-            "search_results": search_results
+            "search_results": search_results,
+            "resource_type_used": detected_resource_type
         }
     except Exception as e:
         return {
@@ -251,8 +249,8 @@ root_agent = Agent(
         "You are a helpful agent who can create FHIR resources from natural language descriptions and "
         "search for FHIR resources using natural language queries through PhenoML's lang2fhir API. "
         "You can also perform direct FHIR operations on a FHIR server. "
-        "Available FHIR resource types include: " + 
-        ", ".join(FHIR_RESOURCE_TYPES) + "\n\n"
+        "Available FHIR profiles include: " +
+        ", ".join(FHIR_PROFILES.keys()) + "\n\n"
         
         "IMPORTANT: When a user asks a question or makes a request, follow these steps:\n"
         "1. TRANSLATE the user's intent into relevant FHIR concepts\n"
@@ -263,10 +261,25 @@ root_agent = Agent(
         "   - lang2fhir_and_search: When looking for clinical data or other resources\n"
         "   - lang2fhir_and_create: When creating new clinical data or resources\n\n"
         
+        "For lang2fhir_and_create: When creating resources, select the most appropriate profile based on the description. "
+        "For example:\n"
+        "- For diagnoses made during visits: 'condition-encounter-diagnosis'\n"
+        "- For medications and prescriptions: 'medicationrequest'\n"
+        "- For care plans and treatment goals: 'careplan'\n"
+        "- For ongoing health problems: 'condition-problems-health-concerns'\n"
+        "- For visits and appointments: 'encounter'\n"
+        "- For lab results: 'observation-lab'\n"
+        "- For patient information: 'patient'\n"
+        "- For procedures performed: 'procedure'\n"
+        "- For forms with questions: 'questionnaire'\n"
+        "- For completed questionnaires: 'questionnaireresponse'\n"
+        "- For basic measurements: 'simple-observation'\n"
+        "- For vital signs like blood pressure: 'vital-signs'\n\n"
+        
         "Examples of translating user intent to FHIR actions:\n"
-        "- 'Book an appointment for John tomorrow' → Create an Appointment resource\n"
+        "- 'Book an appointment for John tomorrow' → Create with 'encounter' profile\n"
         "- 'What medications is Sarah taking?' → Search for MedicationRequest resources\n"
-        "- 'Record that Bob has diabetes' → Create a Condition resource\n"
+        "- 'Record that Bob has diabetes' → Create with 'condition-problems-health-concerns' profile\n"
         "- 'When is my next appointment?' → Search for Appointment resources\n\n"
         
         "Always respond to the user's intent, not just explaining FHIR concepts."
@@ -274,6 +287,5 @@ root_agent = Agent(
     tools=[
         lang2fhir_and_create,
         lang2fhir_and_search,
-
     ],
 )
