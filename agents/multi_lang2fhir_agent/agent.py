@@ -8,14 +8,13 @@ FHIR_RESOURCE_TYPES = [
     "Patient", 
     "Condition", 
     "Observation", 
+    "Encounter",
     "Procedure", 
-    "Medication", 
     "MedicationRequest",
-    "Encounter", 
-    "DiagnosticReport", 
+    "PlanDefinition",
     "CarePlan", 
     "Appointment", 
-    "DocumentReference", 
+    "Questionnaire",
     "QuestionnaireResponse"
 ]
 
