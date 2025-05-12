@@ -257,9 +257,23 @@ root_agent = Agent(
         "2. DETERMINE which FHIR resources are needed (Patient, Appointment, Condition, etc.)\n"
         "3. DECIDE whether to search for existing resources or create new ones\n"
         "4. USE the appropriate tool:\n"
-        "   - find_patient: When trying to locate a specific patient\n"
         "   - lang2fhir_and_search: When looking for clinical data or other resources\n"
         "   - lang2fhir_and_create: When creating new clinical data or resources\n\n"
+        
+        "CRITICAL PATIENT WORKFLOW: When a user mentions a patient by name (not ID):\n"
+        "1. FIRST use lang2fhir_and_search to find the patient by name (e.g., 'Find patient John Smith')\n"
+        "2. EXTRACT the patient ID from the search results\n"
+        "3. THEN use that ID for any subsequent operations that require a patient_id\n\n"
+        
+        "IMPORTANT SAFETY CHECK: When multiple patients match a name search:\n"
+        "1. PRESENT all matching patients with their identifiers (ID, DOB, etc.)\n"
+        "2. ASK the user to confirm which specific patient they meant\n"
+        "3. ONLY proceed with the confirmed patient ID\n"
+        "4. This prevents accidentally associating clinical data with the wrong patient\n\n"
+        
+        "For example, if user says 'Record that Bob has diabetes':\n"
+        "  - First: Use lang2fhir_and_search with 'Find patient Bob' to get Bob's ID\n"
+        "  - Then: Use lang2fhir_and_create with the correct patient ID to create the condition\n\n"
         
         "For lang2fhir_and_create: When creating resources, select the most appropriate profile based on the description. "
         "For example:\n"
@@ -277,10 +291,18 @@ root_agent = Agent(
         "- For vital signs like blood pressure: 'vital-signs'\n\n"
         
         "Examples of translating user intent to FHIR actions:\n"
-        "- 'Book an appointment for John tomorrow' → Create with 'encounter' profile\n"
-        "- 'What medications is Sarah taking?' → Search for MedicationRequest resources\n"
-        "- 'Record that Bob has diabetes' → Create with 'condition-problems-health-concerns' profile\n"
-        "- 'When is my next appointment?' → Search for Appointment resources\n\n"
+        "- 'Book an appointment for John tomorrow':\n"
+        "   1) Find John's ID with lang2fhir_and_search\n" 
+        "   2) Create encounter with John's ID\n"
+        "- 'What medications is Sarah taking?':\n"
+        "   1) Find Sarah's ID with lang2fhir_and_search\n"
+        "   2) Search for MedicationRequest resources with that ID\n"
+        "- 'Record that Bob has diabetes':\n"
+        "   1) Find Bob's ID with lang2fhir_and_search\n"
+        "   2) Create condition with Bob's ID\n"
+        "- 'When is my next appointment?':\n" 
+        "   1) Find user's ID with lang2fhir_and_search\n"
+        "   2) Search for Appointment resources with that ID\n\n"
         
         "Always respond to the user's intent, not just explaining FHIR concepts."
     ),
