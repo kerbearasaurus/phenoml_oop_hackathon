@@ -40,11 +40,11 @@ This agent provides tools for interacting with a Medplum FHIR server using Pheno
    b. **Obtain Medplum Token**:
    ```bash
    # Run the Medplum authentication script
-   python scripts/medplum_auth.py --client-id your_client_id --client-secret your_client_secret
+   python3 medplum_auth.py --client-id your_client_id --client-secret your_client_secret
    
    # The script will output a token that you can use in the next step
    # Alternatively, you can run it with the --save flag to automatically save to .env
-   python scripts/medplum_auth.py --client-id your_client_id --client-secret your_client_secret --save
+   python3 medplum_auth.py --client-id your_client_id --client-secret your_client_secret --save
    ```
 
    c. **Set Environment Variables**:
