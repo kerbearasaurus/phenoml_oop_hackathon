@@ -1,6 +1,6 @@
 # PhenoML FHIR Agent
 
-This agent provides tools for interacting with a Medplum FHIR server using PhenoML's lang2fhir API for natural language processing of healthcare data.
+This agent provides tools for interacting with a FHIR server using PhenoML's lang2fhir API for natural language processing of healthcare data.
 
 ## Features
 
@@ -12,9 +12,8 @@ This agent provides tools for interacting with a Medplum FHIR server using Pheno
 ## Prerequisites
 
 1. PhenoML account with access to the lang2fhir API
-2. Medplum account (or other FHIR server) for storing created resources
+2. Medplum or Canvas Medical account (or other FHIR server) for storing created resources and executing FHIR searches
 3. Python 3.8+
-4. Google ADK (Agent Development Kit)
 
 ## Setup
 
@@ -29,34 +28,16 @@ This agent provides tools for interacting with a Medplum FHIR server using Pheno
 
    a. **Obtain PhenoML Token**:
    ```bash
-   # Run the PhenoML authentication script
-   python scripts/phenoml_auth.py --email your_email@example.com --password your_password
-   
-   # The script will output a token that you can use in the next step
-   # Alternatively, you can run it with the --save flag to automatically save to .env
-   python scripts/phenoml_auth.py --email your_email@example.com --password your_password --save
+   # Run the PhenoML authentication script with --save flag to save to .env automatically. Assumes your credentials are in your .env already 
+   python auth/phenoml_auth.py --save
    ```
 
    b. **Obtain Medplum Token**:
    ```bash
-   # Run the Medplum authentication script
-   python3 medplum_auth.py --client-id your_client_id --client-secret your_client_secret
-   
-   # The script will output a token that you can use in the next step
-   # Alternatively, you can run it with the --save flag to automatically save to .env
-   python3 medplum_auth.py --client-id your_client_id --client-secret your_client_secret --save
+   # Run the Medplum authentication script with --save flag to save to .env automatically. Assumes your credentials are in your .env already
+   python3 auth/medplum_auth.py --save
+
    ```
-
-   c. **Set Environment Variables**:
-   If you didn't use the `--save` flag, manually set the environment variables:
-   ```bash
-   # Required environment variables
-   export PHENOML_TOKEN="your_phenoml_access_token" 
-   export MEDPLUM_TOKEN="your_medplum_access_token"
-   ```
-
-   The agent will automatically use these environment variables for authentication.
-
 
 ## PhenoML lang2fhir API
 

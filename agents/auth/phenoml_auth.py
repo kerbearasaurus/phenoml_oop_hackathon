@@ -9,12 +9,12 @@ import requests
 import argparse
 from dotenv import load_dotenv
 
-def phenoml_authenticate(email=None, password=None):
+def phenoml_authenticate(identity=None, password=None):
     """
     Authenticate with PhenoML API and get a token.
     
     Args:
-        email (str, optional): PhenoML email. Defaults to env var PHENOML_EMAIL.
+        identity (str, optional): PhenoML identity. Defaults to env var PHENOML_IDENTITY.
         password (str, optional): PhenoML password. Defaults to env var PHENOML_PASSWORD.
         
     Returns:
@@ -24,22 +24,22 @@ def phenoml_authenticate(email=None, password=None):
     load_dotenv()
     
     # Use provided credentials or get from environment
-    email = email or os.environ.get("PHENOML_EMAIL")
+    identity = identity or os.environ.get("PHENOML_IDENTITY")
     password = password or os.environ.get("PHENOML_PASSWORD")
     
-    if not email or not password:
+    if not identity or not password:
         return {
             "status": "error",
-            "error_message": "PhenoML credentials not found. Please provide email/password or set environment variables."
+            "error_message": "PhenoML credentials not found. Please provide identity/password or set environment variables."
         }
     
     try:
         # Create Basic Auth credentials
-        auth_string = f"{email}:{password}"
+        auth_string = f"{identity}:{password}"
         encoded_auth = base64.b64encode(auth_string.encode()).decode()
         
         # Authenticate with PhenoML
-        auth_url = "https://experiment.app.pheno.ml/auth/token"
+        auth_url = "https://experiment-test.app.pheno.ml/auth/token"
         headers = {
             "Authorization": f"Basic {encoded_auth}",
             "Accept": "application/json"
@@ -73,13 +73,13 @@ def main():
     Command-line interface for PhenoML authentication.
     """
     parser = argparse.ArgumentParser(description="Authenticate with PhenoML API")
-    parser.add_argument("--email", help="PhenoML email")
+    parser.add_argument("--identity", help="PhenoML identity")
     parser.add_argument("--password", help="PhenoML password")
     parser.add_argument("--save", action="store_true", help="Save token to .env file")
     args = parser.parse_args()
     
     # Authenticate with provided credentials or environment variables
-    result = phenoml_authenticate(args.email, args.password)
+    result = phenoml_authenticate(args.identity, args.password)
     
     if result["status"] == "success":
         token = result["token"]
