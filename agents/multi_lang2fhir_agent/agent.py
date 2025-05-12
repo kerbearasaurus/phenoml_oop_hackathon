@@ -2,6 +2,7 @@ import requests
 import os
 from typing import Dict, List, Any, Optional, Literal
 from google.adk.agents import Agent
+from datetime import datetime
 
 # Define all FHIR profiles with their corresponding resource types
 FHIR_PROFILES = {
@@ -31,7 +32,8 @@ def lang2fhir_and_create(
     natural_language_description: str, 
     profile: str,
     patient_id: str, 
-    version: str = "R4"
+    version: str = "R4",
+    practitioner_id: Optional[str] = None
 ) -> dict:
     """Converts natural language to a FHIR resource and directly creates it on the FHIR server.
     
@@ -39,12 +41,13 @@ def lang2fhir_and_create(
         natural_language_description (str): Natural language description of the resource to create.
         patient_id (str): The patient ID to associate this resource with.
         resource_type (str): The specific FHIR profile to use. 
-            Must be one of: condition-encounter-diagnosis, medicationrequest, careplan, 
+            Must be one of: appointment, condition-encounter-diagnosis, medicationrequest, careplan, 
             condition-problems-health-concerns, coverage, encounter, observation-clinical-result, 
             observation-lab, patient, procedure, questionnaire, questionnaireresponse, 
             simple-observation, vital-signs.
             Select the most appropriate profile based on the description.
         version (str, optional): FHIR version to use. Defaults to "R4".
+        practitioner_id (str, optional): The practitioner ID to associate with this resource. Required for appointments.
         
     Returns:
         dict: Creation result with status and resource data or error message.
@@ -101,16 +104,36 @@ def lang2fhir_and_create(
         
         # Step 2: Add patient reference to the resource if it's a clinical resource (not a Patient resource)
         if base_resource_type.lower() != "patient":
-            # Add subject reference for clinical resources
-            fhir_resource["subject"] = {
-                "reference": f"Patient/{patient_id}"
-            }
-            
-            # For specific resource types that use patient instead of subject
-            if base_resource_type.lower() in ["encounter", "appointmentresponse", "appointmentrecurrence"]:
-                fhir_resource["patient"] = {
+            # Handle Appointment resources differently - they use participant array
+            if base_resource_type.lower() == "appointment":
+                # Completely overwrite participants array with correctly formatted entries
+                fhir_resource["participant"] = [
+                    {
+                        "actor": {"reference": f"Patient/{patient_id}"},
+                        "status": "accepted"
+                    }
+                ]
+                
+                # Add practitioner if provided
+                if practitioner_id:
+                    fhir_resource["participant"].append({
+                        "actor": {"reference": f"Practitioner/{practitioner_id}"},
+                        "status": "accepted"
+                    })
+                
+                # Ensure appointment has a status
+                fhir_resource["status"] = "booked"
+            else:
+                # Add subject reference for clinical resources
+                fhir_resource["subject"] = {
                     "reference": f"Patient/{patient_id}"
                 }
+                
+                # For specific resource types that use patient instead of subject
+                if base_resource_type.lower() in ["encounter", "appointmentresponse", "appointmentrecurrence"]:
+                    fhir_resource["patient"] = {
+                        "reference": f"Patient/{patient_id}"
+                    }
         
         # Step 3: Create the resource on the FHIR server
         fhir_headers = {
@@ -124,7 +147,13 @@ def lang2fhir_and_create(
         
         # Create the resource on the FHIR server
         fhir_url = f"{fhir_server_url}/{base_resource_type}"
+
         fhir_response = requests.post(fhir_url, json=fhir_resource, headers=fhir_headers)
+        
+        # Debug output for appointment errors only
+        if not fhir_response.ok and base_resource_type.lower() == "appointment":
+            print(f"Appointment error {fhir_response.status_code}: {fhir_response.text}")
+        
         fhir_response.raise_for_status()
         
         created_resource = fhir_response.json()
@@ -253,6 +282,10 @@ root_agent = Agent(
         "Available FHIR profiles include: " +
         ", ".join(FHIR_PROFILES.keys()) + "\n\n"
         
+        "CURRENT DATE: Today's date is " + 
+        datetime.now().strftime("%Y-%m-%d") + ". Always use this as your reference point when "
+        "handling relative dates like 'tomorrow' or 'next week'.\n\n"
+        
         "IMPORTANT: When a user asks a question or makes a request, follow these steps:\n"
         "1. TRANSLATE the user's intent into relevant FHIR concepts\n"
         "2. DETERMINE which FHIR resources are needed (Patient, Appointment, Condition, etc.)\n"
@@ -265,6 +298,25 @@ root_agent = Agent(
         "1. FIRST use lang2fhir_and_search to find the patient by name (e.g., 'Find patient John Smith')\n"
         "2. EXTRACT the patient ID from the search results\n"
         "3. THEN use that ID for any subsequent operations that require a patient_id\n\n"
+        
+        "APPOINTMENT WORKFLOW: When creating appointments that involve both patients and practitioners:\n"
+        "1. FIRST use lang2fhir_and_search to find the patient by name\n"
+        "2. ALSO use lang2fhir_and_search to find the practitioner by name\n"
+        "3. EXTRACT both patient ID and practitioner ID from search results\n"
+        "4. INCLUDE both identifiers in your description when using lang2fhir_and_create\n"
+        "5. SPECIFY the appointment details clearly (date, time, reason, status)\n"
+        "6. This ensures all participants are properly referenced in the appointment resource\n\n"
+        
+        "PROVIDER AVAILABILITY WORKFLOW: When checking if a provider is available:\n"
+        "1. FIRST use lang2fhir_and_search to find the practitioner by name to get practitioner ID\n"
+        "2. THEN use lang2fhir_and_search to find the practitioner's Schedule resource using practitioner ID\n"
+        "3. EXTRACT the schedule identifier from the search results\n"
+        "4. FINALLY use lang2fhir_and_search with the schedule identifier to check available Slot resources\n"
+        "5. FILTER OUT any slots with start times in the past (before today's date)\n"
+        "6. When asked about 'next week' or other relative timeframes, ONLY show slots within that specific time period\n"
+        "7. SORT available slots by date and time to present them in chronological order\n"
+        "8. REPORT back available times based on the filtered Slot resources or indicate if no slots are available\n"
+        "9. This ensures accurate and relevant scheduling information based on the provider's actual future availability\n\n"
         
         "IMPORTANT SAFETY CHECK: When multiple patients match a name search:\n"
         "1. PRESENT all matching patients with their identifiers (ID, DOB, etc.)\n"
@@ -282,7 +334,7 @@ root_agent = Agent(
         "- For medications and prescriptions: 'medicationrequest'\n"
         "- For care plans and treatment goals: 'careplan'\n"
         "- For ongoing health problems: 'condition-problems-health-concerns'\n"
-        "- For visits and appointments: 'encounter'\n"
+        "- For appointments: 'appointment'\n"
         "- For lab results: 'observation-lab'\n"
         "- For patient information: 'patient'\n"
         "- For procedures performed: 'procedure'\n"
@@ -292,9 +344,10 @@ root_agent = Agent(
         "- For vital signs like blood pressure: 'vital-signs'\n\n"
         
         "Examples of translating user intent to FHIR actions:\n"
-        "- 'Book an appointment for John tomorrow':\n"
+        "- 'Book an appointment for John with Dr. Smith tomorrow':\n"
         "   1) Find John's ID with lang2fhir_and_search\n" 
-        "   2) Create encounter with John's ID\n"
+        "   2) Find Dr. Smith's ID with lang2fhir_and_search\n"
+        "   3) Create appointment with both IDs and clear details about date, time, and purpose\n"
         "- 'What medications is Sarah taking?':\n"
         "   1) Find Sarah's ID with lang2fhir_and_search\n"
         "   2) Search for MedicationRequest resources with that ID\n"
