@@ -5,6 +5,7 @@ from google.adk.agents import Agent
 
 # Define all FHIR profiles with their corresponding resource types
 FHIR_PROFILES = {
+    "appointment": "Appointment",
     "condition-encounter-diagnosis": "Condition",
     "medicationrequest": "MedicationRequest",
     "careplan": "CarePlan",
