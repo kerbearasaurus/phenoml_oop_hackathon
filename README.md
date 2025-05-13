@@ -2,6 +2,12 @@
 
 This agent provides tools for interacting with a FHIR server using PhenoML's lang2fhir API for natural language processing of healthcare data.
 
+### Demo
+
+Demo of an agent that you can build using this repo!
+
+![PhenoML FHIR Agent Demo](202505131555.gif)
+
 ## Features
 
 - Convert natural language descriptions to FHIR resources using PhenoML's lang2fhir API
