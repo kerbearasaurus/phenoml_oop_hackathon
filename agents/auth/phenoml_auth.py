@@ -39,7 +39,7 @@ def phenoml_authenticate(identity=None, password=None):
         encoded_auth = base64.b64encode(auth_string.encode()).decode()
         
         # Authenticate with PhenoML
-        auth_url = "https://experiment-test.app.pheno.ml/auth/token"
+        auth_url = "https://experiment.app.pheno.ml/auth/token"
         headers = {
             "Authorization": f"Basic {encoded_auth}",
             "Accept": "application/json"
