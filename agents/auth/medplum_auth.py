@@ -94,20 +94,32 @@ def main():
             env_file = ".env"
             
             # Read existing .env file if it exists
-            env_vars = {}
+            # Store all lines faithfully, unless it is a line for MEDPLUM_TOKEN.
+            # In that case, store a replacement line with the new token value.
+            # If none of the lines were for the MEDPLUM_TOKEN, append it to the
+            # end.
+            env_file_lines = []
+            token_line_set = False
             if os.path.exists(env_file):
                 with open(env_file, "r") as f:
                     for line in f:
-                        if "=" in line and not line.startswith("#"):
+                        if line.startswith("#") or line.strip() == "":
+                            env_file_lines.append(line)
+                        elif "=" in line:
                             key, value = line.strip().split("=", 1)
-                            env_vars[key] = value
+                            if key == "MEDPLUM_TOKEN":
+                                updated_token_line = f"MEDPLUM_TOKEN={token}\n"
+                                env_file_lines.append(updated_token_line)
+                                token_line_set = True
+                            else:
+                                env_file_lines.append(line)
+            if not token_line_set:
+                env_file_lines.append(f"MEDPLUM_TOKEN={token}\n")
             
-            # Update token and write back
-            env_vars["MEDPLUM_TOKEN"] = token
-            
+            # Write the updated env file
             with open(env_file, "w") as f:
-                for key, value in env_vars.items():
-                    f.write(f"{key}={value}\n")
+                for line in env_file_lines:
+                    f.write(f"{line}")
             
             print(f"Token saved to {env_file}")
     else:
@@ -117,4 +129,4 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    exit(main()) 
+    exit(main())
