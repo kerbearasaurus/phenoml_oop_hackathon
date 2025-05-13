@@ -26,16 +26,28 @@ This agent provides tools for interacting with a FHIR server using PhenoML's lan
 
 3. Authenticate and set up environment variables:
 
-   a. **Obtain PhenoML Token**:
+   a. **Set .env credentials**:
+   Open the file `agents/.env` in your text editor of choice and set your
+PhenoML credentials and either Medplum or Canvas credentials based on which
+EMR you have chosen.
+
+   b. **Obtain PhenoML Token**:
    ```bash
    # Run the PhenoML authentication script with --save flag to save to .env automatically. Assumes your credentials are in your .env already 
    python auth/phenoml_auth.py --save
    ```
 
-   b. **Obtain Medplum Token**:
+   c. **Obtain Medplum Token** (if using Medplum):
    ```bash
    # Run the Medplum authentication script with --save flag to save to .env automatically. Assumes your credentials are in your .env already
    python3 auth/medplum_auth.py --save
+
+   ```
+
+   d. **Obtain Canvas Token** (if using Canvas):
+   ```bash
+   # Run the Canvas authentication script with --save flag to save to .env automatically. Assumes your credentials are in your .env already
+   python3 auth/canvas_auth.py --save
 
    ```
 

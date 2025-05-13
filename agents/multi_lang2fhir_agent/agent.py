@@ -26,7 +26,6 @@ FHIR_PROFILES = {
 # Get the valid resource types from the profiles
 FHIR_RESOURCE_TYPES = list(set(FHIR_PROFILES.values()))
 
-#//TODO: update to support both Medplum and Canvas FHIR APIs
 
 def lang2fhir_and_create(
     natural_language_description: str, 
@@ -56,6 +55,8 @@ def lang2fhir_and_create(
         # Get tokens from environment variables
         phenoml_token = os.environ.get("PHENOML_TOKEN")
         medplum_token = os.environ.get("MEDPLUM_TOKEN")
+        canvas_token = os.environ.get("CANVAS_TOKEN")
+        canvas_instance_identifier = os.environ.get("CANVAS_INSTANCE_IDENTIFIER")
         
         if not phenoml_token:
             return {
@@ -63,14 +64,19 @@ def lang2fhir_and_create(
                 "error_message": "PHENOML_TOKEN environment variable not set"
             }
             
-        if not medplum_token:
+        if (not medplum_token and not canvas_token) or (medplum_token and canvas_token):
             return {
                 "status": "error",
-                "error_message": "MEDPLUM_TOKEN environment variable not set"
+                "error_message": "Exactly one of MEDPLUM_TOKEN or CANVAS_TOKEN environment variable must be set"
             }
             
         # Set FHIR server URL
-        fhir_server_url = "https://api.medplum.com/fhir/R4"
+        if canvas_token and not medplum_token:
+            fhir_server_url = f"https://fumage-{canvas_instance_identifier}.canvasmedical.com"
+            fhir_access_token = canvas_token
+        if medplum_token and not canvas_token:
+            fhir_server_url = "https://api.medplum.com/fhir/R4"
+            fhir_access_token = medplum_token
         
         # Validate resource type (profile)
         if profile not in FHIR_PROFILES:
@@ -137,7 +143,7 @@ def lang2fhir_and_create(
         
         # Step 3: Create the resource on the FHIR server
         fhir_headers = {
-            "Authorization": f"Bearer {medplum_token}",
+            "Authorization": f"Bearer {fhir_access_token}",
             "Content-Type": "application/json"
         }
         
@@ -190,6 +196,8 @@ def lang2fhir_and_search(
         # Get tokens from environment variables
         phenoml_token = os.environ.get("PHENOML_TOKEN")
         medplum_token = os.environ.get("MEDPLUM_TOKEN")
+        canvas_token = os.environ.get("CANVAS_TOKEN")
+        canvas_instance_identifier = os.environ.get("CANVAS_INSTANCE_IDENTIFIER")
         
         if not phenoml_token:
             return {
@@ -197,14 +205,19 @@ def lang2fhir_and_search(
                 "error_message": "PHENOML_TOKEN environment variable not set"
             }
             
-        if not medplum_token:
+        if (not medplum_token and not canvas_token) or (medplum_token and canvas_token):
             return {
                 "status": "error",
-                "error_message": "MEDPLUM_TOKEN environment variable not set"
+                "error_message": "Exactly one of MEDPLUM_TOKEN or CANVAS_TOKEN environment variable must be set"
             }
             
         # Set FHIR server URL
-        fhir_server_url = "https://api.medplum.com/fhir/R4"
+        if canvas_token and not medplum_token:
+            fhir_server_url = f"https://fumage-{canvas_instance_identifier}.canvasmedical.com"
+            fhir_access_token = canvas_token
+        if medplum_token and not canvas_token:
+            fhir_server_url = "https://api.medplum.com/fhir/R4"
+            fhir_access_token = medplum_token
         
 
         # Step 1: Convert natural language to FHIR search parameters using lang2fhir
@@ -239,7 +252,7 @@ def lang2fhir_and_search(
                 params["subject"] = f"Patient/{patient_id}"
         
         fhir_headers = {
-            "Authorization": f"Bearer {medplum_token}",
+            "Authorization": f"Bearer {fhir_access_token}",
             "Content-Type": "application/json"
         }
         
