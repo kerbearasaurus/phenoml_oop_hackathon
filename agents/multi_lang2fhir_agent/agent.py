@@ -3,6 +3,7 @@ import os
 from typing import Dict, List, Any, Optional, Literal
 from google.adk.agents import Agent
 from datetime import datetime
+import json
 
 # Define all FHIR profiles with their corresponding resource types
 FHIR_PROFILES = {
@@ -180,7 +181,8 @@ def lang2fhir_and_create(
 
 def lang2fhir_and_search(
     natural_language_query: str, 
-    patient_id: Optional[str] = None
+    patient_id: Optional[str] = None,
+    practitioner_id: Optional[str] = None
 ) -> dict:
     """Converts a natural language query to FHIR search parameters and performs the search in one operation.
     
@@ -193,6 +195,8 @@ def lang2fhir_and_search(
         dict: Search result with status and search results or error message.
     """
     try:
+        print(f"\n[DEBUG] Search query: {natural_language_query}")
+        
         # Get tokens from environment variables
         phenoml_token = os.environ.get("PHENOML_TOKEN")
         medplum_token = os.environ.get("MEDPLUM_TOKEN")
@@ -226,6 +230,9 @@ def lang2fhir_and_search(
             "text": natural_language_query
         }
 
+        print(f"[DEBUG] lang2fhir API call: POST {lang2fhir_url}")
+        print(f"[DEBUG] lang2fhir payload: {lang2fhir_payload}")
+
         lang2fhir_headers = {
             "Authorization": f"Bearer {phenoml_token}",
             "Content-Type": "application/json",
@@ -237,37 +244,124 @@ def lang2fhir_and_search(
         lang2fhir_response.raise_for_status()
         
         search_params = lang2fhir_response.json()
+        print(f"[DEBUG] lang2fhir response: {json.dumps(search_params, indent=2)}")
         
         # Extract resource type and search parameters from lang2fhir response
         detected_resource_type = search_params.get("resourceType")
-        params = search_params.get("parameters", {})
+        search_params_str = search_params.get("searchParams", "")
         
-
-        # Add patient-specific filtering if patient_id is provided
-        if patient_id and detected_resource_type.lower() != "patient":
-            # Add appropriate patient filter based on resource type
-            if detected_resource_type.lower() in ["encounter", "appointmentresponse"]:
-                params["patient"] = f"Patient/{patient_id}"
-            else:
-                params["subject"] = f"Patient/{patient_id}"
+        print(f"[DEBUG] Detected resource type: {detected_resource_type}")
+        print(f"[DEBUG] Search parameters string: {search_params_str}")
+        
+        # Build search URL
+        fhir_url = f"{fhir_server_url}/{detected_resource_type}"
+        
+        # Add search parameters with proper reference handling for FHIR
+        if search_params_str:
+            # Parse parameters
+            parts = search_params_str.split('&')
+            fixed_parts = []
+            
+            for part in parts:
+                if '=' in part:
+                    name, value = part.split('=', 1)
+                    
+                    if ('/' not in value and 
+                        # Pattern match for UUIDs and similar IDs
+                        ('-' in value or value.startswith('0') and len(value) > 20)):
+                        
+                        # Simple mapping of parameter names to resource types
+                        param_to_resource = {
+                            # Common reference parameters
+                            'patient': 'Patient',
+                            'subject': 'Patient',
+                            'practitioner': 'Practitioner',
+                            'actor': 'Practitioner',
+                            'provider': 'Practitioner',
+                            'schedule': 'Schedule',
+                            'encounter': 'Encounter',
+                            'organization': 'Organization',
+                            'location': 'Location',
+                            'slot': 'Slot',
+                            'appointment': 'Appointment',
+                        }
+                        
+                        # Try to determine resource type
+                        resource_type = None
+                        
+                        # 1. Check if parameter name is in our mapping
+                        if name in param_to_resource:
+                            resource_type = param_to_resource[name]
+                        
+                        # 2. If parameter ends with 'Id', strip 'Id' and capitalize
+                        elif name.endswith('Id'):
+                            resource_type = name[:-2].capitalize()
+                        
+                        # 3. Check if parameter matches a FHIR resource type (case-insensitive)
+                        else:
+                            # Try to find a matching resource type
+                            for rt in FHIR_RESOURCE_TYPES:
+                                if rt.lower() == name.lower():
+                                    resource_type = rt
+                                    break
+                            
+                        # If we identified a resource type, format as a proper reference
+                        if resource_type:
+                            fixed_parts.append(f"{name}={resource_type}/{value}")
+                        else:
+                            fixed_parts.append(part)
+                    else:
+                        fixed_parts.append(part)
+                else:
+                    fixed_parts.append(part)
+            
+            # Reconstruct the query string
+            search_params_str = '&'.join(fixed_parts)
+            fhir_url = f"{fhir_url}?{search_params_str}"
+        
+        
+        print(f"[DEBUG] FHIR API call: GET {fhir_url}")
         
         fhir_headers = {
             "Authorization": f"Bearer {fhir_access_token}",
             "Content-Type": "application/json"
         }
         
-        # Build search URL
-        fhir_url = f"{fhir_server_url}/{detected_resource_type}"
-        
-        if params:
-            query_string = "&".join([f"{key}={value}" for key, value in params.items()])
-            fhir_url = f"{fhir_url}?{query_string}"
-        
         # Execute the search on the FHIR server
         fhir_response = requests.get(fhir_url, headers=fhir_headers)
         fhir_response.raise_for_status()
         
         search_results = fhir_response.json()
+        
+        # If this is a Slot search, check for past slots
+        if detected_resource_type == "Slot" and "entry" in search_results:
+            today = datetime.now().strftime("%Y-%m-%d")
+            print(f"[DEBUG] Today's date: {today}")
+            
+            past_slots = []
+            future_slots = []
+            
+            for entry in search_results.get("entry", []):
+                if "resource" in entry and entry["resource"].get("resourceType") == "Slot":
+                    slot = entry["resource"]
+                    start_date = slot.get("start", "").split("T")[0]  # Extract YYYY-MM-DD
+                    
+                    if start_date < today:
+                        past_slots.append(f"ID: {slot.get('id')}, Start: {slot.get('start')}")
+                    else:
+                        future_slots.append(f"ID: {slot.get('id')}, Start: {slot.get('start')}")
+            
+            print(f"[DEBUG] Found {len(past_slots)} past slots and {len(future_slots)} future slots")
+            
+            if past_slots:
+                print("[DEBUG] Sample past slots:")
+                for slot in past_slots[:3]:  # Show up to 3 past slots
+                    print(f"  - {slot}")
+            
+            if future_slots:
+                print("[DEBUG] Sample future slots:")
+                for slot in future_slots[:3]:  # Show up to 3 future slots
+                    print(f"  - {slot}")
         
         return {
             "status": "success",
@@ -276,6 +370,7 @@ def lang2fhir_and_search(
             "resource_type_used": detected_resource_type
         }
     except Exception as e:
+        print(f"[DEBUG] Error in lang2fhir_and_search: {str(e)}")
         return {
             "status": "error",
             "error_message": f"Search failed: {str(e)}"
@@ -326,6 +421,11 @@ root_agent = Agent(
         "3. EXTRACT the schedule identifier from the search results\n"
         "4. FINALLY use lang2fhir_and_search with the schedule identifier to check available Slot resources\n"
         "5. FILTER OUT any slots with start times in the past (before today's date)\n"
+        "   - IMPORTANT: Parse dates correctly by extracting YYYY-MM-DD from the slot start time\n"
+        "   - COMPARE dates using datetime objects, not string comparison\n"
+        "   - Today's date is " + datetime.now().strftime("%Y-%m-%d") + "\n"
+        "   - If a slot date is EXACTLY " + datetime.now().strftime("%Y-%m-%d") + ", INCLUDE it\n"
+        "   - ALWAYS INCLUDE slots from today or future dates\n"
         "6. When asked about 'next week' or other relative timeframes, ONLY show slots within that specific time period\n"
         "7. SORT available slots by date and time to present them in chronological order\n"
         "8. REPORT back available times based on the filtered Slot resources or indicate if no slots are available\n"
