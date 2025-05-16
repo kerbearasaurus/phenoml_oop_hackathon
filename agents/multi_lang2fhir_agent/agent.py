@@ -253,7 +253,7 @@ def lang2fhir_and_search(
                     name, value = part.split('=', 1)
                     
                     if ('/' not in value and 
-                        # Pattern match for UUIDs and similar IDs
+                        # Pattern match for UUIDs so we know it's a reference Id
                         ('-' in value or value.startswith('0') and len(value) > 20)):
                         
                         # Simple mapping of parameter names to resource types
@@ -279,7 +279,7 @@ def lang2fhir_and_search(
                         if name in param_to_resource:
                             resource_type = param_to_resource[name]
                         
-                        # 2. If parameter ends with 'Id', strip 'Id' and capitalize
+                        # 2. If parameter ends with 'Id', strip 'Id' and capitalize, backup to catch references
                         elif name.endswith('Id'):
                             resource_type = name[:-2].capitalize()
                         
@@ -319,7 +319,7 @@ def lang2fhir_and_search(
         
         search_results = fhir_response.json()
         
-        # If this is a Slot search, check for past slots
+        # If this is a Slot search, check for past slots, this additional debug logic seems to be helping the agent understand the correct slots to look at in scheduling use cases
         if detected_resource_type == "Slot" and "entry" in search_results:
             today = datetime.now().strftime("%Y-%m-%d")
             print(f"[DEBUG] Today's date: {today}")
