@@ -21,6 +21,8 @@ FHIR_PROFILES = {
     "questionnaire": "Questionnaire",
     "questionnaireresponse": "QuestionnaireResponse",
     "simple-observation": "Observation",
+    "schedule": "Schedule",
+    "slot": "Slot",
     "vital-signs": "Observation"
 }
 
@@ -31,7 +33,7 @@ FHIR_RESOURCE_TYPES = list(set(FHIR_PROFILES.values()))
 def lang2fhir_and_create(
     natural_language_description: str, 
     profile: str,
-    patient_id: str, 
+    patient_id: Optional[str] = None,
     version: str = "R4",
     practitioner_id: Optional[str] = None
 ) -> dict:
@@ -39,12 +41,12 @@ def lang2fhir_and_create(
     
     Args:
         natural_language_description (str): Natural language description of the resource to create.
-        patient_id (str): The patient ID to associate this resource with.
+        patient_id (str, optional): The patient ID to associate this resource with.
         resource_type (str): The specific FHIR profile to use. 
             Must be one of: appointment, condition-encounter-diagnosis, medicationrequest, careplan, 
             condition-problems-health-concerns, coverage, encounter, observation-clinical-result, 
             observation-lab, patient, procedure, questionnaire, questionnaireresponse, 
-            simple-observation, vital-signs.
+            simple-observation, schedule, slot, vital-signs.
             Select the most appropriate profile based on the description.
         version (str, optional): FHIR version to use. Defaults to "R4".
         practitioner_id (str, optional): The practitioner ID to associate with this resource. Required for appointments.
@@ -147,19 +149,11 @@ def lang2fhir_and_create(
             "Authorization": f"Bearer {fhir_access_token}",
             "Content-Type": "application/json"
         }
-        
-        # Ensure resourceType is set correctly for Medplum (use the base type, not profile)
-        #//TODO: this might not be necesssary try removing it
-        fhir_resource["resourceType"] = base_resource_type
-        
+
         # Create the resource on the FHIR server
         fhir_url = f"{fhir_server_url}/{base_resource_type}"
 
         fhir_response = requests.post(fhir_url, json=fhir_resource, headers=fhir_headers)
-        
-        # Debug output for appointment errors only
-        if not fhir_response.ok and base_resource_type.lower() == "appointment":
-            print(f"Appointment error {fhir_response.status_code}: {fhir_response.text}")
         
         fhir_response.raise_for_status()
         
@@ -180,16 +174,12 @@ def lang2fhir_and_create(
 
 
 def lang2fhir_and_search(
-    natural_language_query: str, 
-    patient_id: Optional[str] = None,
-    practitioner_id: Optional[str] = None
+    natural_language_query: str
 ) -> dict:
     """Converts a natural language query to FHIR search parameters and performs the search in one operation.
     
     Args:
         natural_language_query (str): Natural language search query like "Find all patients with diabetes".
-        patient_id (Optional[str], optional): If provided, limits the search to a specific patient.
-        resource_type (Optional[str], optional): If provided, forces a specific resource type or profile.
         
     Returns:
         dict: Search result with status and search results or error message.
@@ -244,14 +234,10 @@ def lang2fhir_and_search(
         lang2fhir_response.raise_for_status()
         
         search_params = lang2fhir_response.json()
-        print(f"[DEBUG] lang2fhir response: {json.dumps(search_params, indent=2)}")
         
         # Extract resource type and search parameters from lang2fhir response
         detected_resource_type = search_params.get("resourceType")
         search_params_str = search_params.get("searchParams", "")
-        
-        print(f"[DEBUG] Detected resource type: {detected_resource_type}")
-        print(f"[DEBUG] Search parameters string: {search_params_str}")
         
         # Build search URL
         fhir_url = f"{fhir_server_url}/{detected_resource_type}"
