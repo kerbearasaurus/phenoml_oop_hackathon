@@ -35,7 +35,8 @@ def lang2fhir_and_create(
     profile: str,
     patient_id: Optional[str] = None,
     version: str = "R4",
-    practitioner_id: Optional[str] = None
+    practitioner_id: Optional[str] = None,
+    location_id: Optional[str] = None
 ) -> dict:
     """Converts natural language to a FHIR resource and directly creates it on the FHIR server.
     
@@ -50,6 +51,7 @@ def lang2fhir_and_create(
             Select the most appropriate profile based on the description.
         version (str, optional): FHIR version to use. Defaults to "R4".
         practitioner_id (str, optional): The practitioner ID to associate with this resource. Required for appointments.
+        location_id (str, optional): The location ID to associate with this resource. Required for appointments on Canvas FHIR servers.
         
     Returns:
         dict: Creation result with status and resource data or error message.
@@ -107,6 +109,8 @@ def lang2fhir_and_create(
         
         # Call lang2fhir API to get FHIR resource
         lang2fhir_response = requests.post(lang2fhir_url, json=lang2fhir_payload, headers=lang2fhir_headers)
+        
+  
         lang2fhir_response.raise_for_status()
         
         fhir_resource = lang2fhir_response.json()
@@ -132,6 +136,20 @@ def lang2fhir_and_create(
                 
                 # Ensure appointment has a status
                 fhir_resource["status"] = "booked"
+                
+                # For Canvas Medical FHIR server, add supportingInformation with Location reference
+                if canvas_token and not medplum_token:
+                    print("[DEBUG] Canvas FHIR server requires location in supportingInformation for appointments")
+                    
+                    # Add location reference if provided
+                    if location_id:
+                        fhir_resource["supportingInformation"] = [
+                            {"reference": f"Location/{location_id}"}
+                        ]
+                        print(f"[DEBUG] Added Location/{location_id} to supportingInformation")
+                    else:
+                        print("[WARNING] Canvas requires location_id for appointments")
+
             else:
                 # Add subject reference for clinical resources
                 fhir_resource["subject"] = {
@@ -143,6 +161,9 @@ def lang2fhir_and_create(
                     fhir_resource["patient"] = {
                         "reference": f"Patient/{patient_id}"
                     }
+        
+        # Print the final resource
+        print(f"[DEBUG] Final FHIR resource to create: {json.dumps(fhir_resource, indent=2)}")
         
         # Step 3: Create the resource on the FHIR server
         fhir_headers = {
@@ -157,10 +178,17 @@ def lang2fhir_and_create(
         
         fhir_response.raise_for_status()
         
-        created_resource = fhir_response.json()
+        # Handle 201 Created with empty body (common in Canvas)
+        if fhir_response.status_code == 201 and not fhir_response.text.strip():
+            created_resource = {
+                "resourceType": base_resource_type,
+                "status": "created"
+            }
+        else:
+            created_resource = fhir_response.json()
         
         return {
-            "status": "success",
+            "status": fhir_response.status_code,
             "lang2fhir_result": fhir_resource,
             "fhir_resource": created_resource,
             "profile_used": profile,
@@ -192,7 +220,7 @@ def lang2fhir_and_search(
         medplum_token = os.environ.get("MEDPLUM_TOKEN")
         canvas_token = os.environ.get("CANVAS_TOKEN")
         canvas_instance_identifier = os.environ.get("CANVAS_INSTANCE_IDENTIFIER")
-        
+
         if not phenoml_token:
             return {
                 "status": "error",
@@ -212,7 +240,8 @@ def lang2fhir_and_search(
         if medplum_token and not canvas_token:
             fhir_server_url = "https://api.medplum.com/fhir/R4"
             fhir_access_token = medplum_token
-        
+
+        print(f"[DEBUG] FHIR server URL: {fhir_server_url}")
 
         # Step 1: Convert natural language to FHIR search parameters using lang2fhir
         lang2fhir_url = "https://experiment.app.pheno.ml/lang2fhir/search"
@@ -221,7 +250,7 @@ def lang2fhir_and_search(
         }
 
         print(f"[DEBUG] lang2fhir API call: POST {lang2fhir_url}")
-        print(f"[DEBUG] lang2fhir payload: {lang2fhir_payload}")
+        print(f"[DEBUG] lang2fhir payload: {json.dumps(lang2fhir_payload, indent=2)}")
 
         lang2fhir_headers = {
             "Authorization": f"Bearer {phenoml_token}",
@@ -231,6 +260,14 @@ def lang2fhir_and_search(
         
         # Call lang2fhir API to get FHIR search parameters
         lang2fhir_response = requests.post(lang2fhir_url, json=lang2fhir_payload, headers=lang2fhir_headers)
+        
+        print(f"[DEBUG] lang2fhir status code: {lang2fhir_response.status_code}")
+        try:
+            print(f"[DEBUG] lang2fhir response: {json.dumps(lang2fhir_response.json(), indent=2)}")
+        except Exception as e:
+            print(f"[DEBUG] lang2fhir raw response: {lang2fhir_response.text}")
+            print(f"[DEBUG] Error parsing JSON: {str(e)}")
+        
         lang2fhir_response.raise_for_status()
         
         search_params = lang2fhir_response.json()
@@ -306,7 +343,7 @@ def lang2fhir_and_search(
             fhir_url = f"{fhir_url}?{search_params_str}"
         
         
-        print(f"[DEBUG] FHIR API call: GET {fhir_url}")
+        print(f"[DEBUG] Final FHIR API call: GET {fhir_url}")
         
         fhir_headers = {
             "Authorization": f"Bearer {fhir_access_token}",
@@ -315,6 +352,15 @@ def lang2fhir_and_search(
         
         # Execute the search on the FHIR server
         fhir_response = requests.get(fhir_url, headers=fhir_headers)
+        
+        print(f"[DEBUG] FHIR server status code: {fhir_response.status_code}")
+        try:
+            response_json = fhir_response.json()
+            print(f"[DEBUG] FHIR server response entries: {len(response_json.get('entry', []))}")
+        except Exception as e:
+            print(f"[DEBUG] FHIR server raw response: {fhir_response.text[:500]}")  # Limit to first 500 chars
+            print(f"[DEBUG] Error parsing JSON: {str(e)}")
+            
         fhir_response.raise_for_status()
         
         search_results = fhir_response.json()
@@ -357,6 +403,10 @@ def lang2fhir_and_search(
         }
     except Exception as e:
         print(f"[DEBUG] Error in lang2fhir_and_search: {str(e)}")
+        if hasattr(e, 'response') and e.response:
+            print(f"[DEBUG] Response status code: {e.response.status_code}")
+            print(f"[DEBUG] Response content: {e.response.text[:500]}")  # Limit to first 500 chars
+            
         return {
             "status": "error",
             "error_message": f"Search failed: {str(e)}"
@@ -397,25 +447,35 @@ root_agent = Agent(
         "1. FIRST use lang2fhir_and_search to find the patient by name\n"
         "2. ALSO use lang2fhir_and_search to find the practitioner by name\n"
         "3. EXTRACT both patient ID and practitioner ID from search results\n"
-        "4. INCLUDE both identifiers in your description when using lang2fhir_and_create\n"
-        "5. SPECIFY the appointment details clearly (date, time, reason, status)\n"
-        "6. This ensures all participants are properly referenced in the appointment resource\n\n"
+        "4. FIND the location for the appointment using one of these methods:\n"
+        "   a. Find Schedule for the practitioner and extract its location reference\n"
+        "   b. Search for locations associated with the practitioner\n"
+        "   c. Or find any active location in the system\n"
+        "5. EXTRACT the location ID to use in the appointment creation\n"
+        "6. When calling lang2fhir_and_create for an appointment, ALWAYS include:\n"
+        "   a. patient_id parameter with the patient's ID\n"
+        "   b. practitioner_id parameter with the practitioner's ID\n"
+        "   c. location_id parameter with the location's ID\n"
+        "7. Use natural language to describe the appointment clearly in the description\n"
+        "8. The tool will automatically handle adding the location to supportingInformation for Canvas\n\n"
         
         "PROVIDER AVAILABILITY WORKFLOW: When checking if a provider is available:\n"
         "1. FIRST use lang2fhir_and_search to find the practitioner by name to get practitioner ID\n"
         "2. THEN use lang2fhir_and_search to find the practitioner's Schedule resource using practitioner ID\n"
         "3. EXTRACT the schedule identifier from the search results\n"
-        "4. FINALLY use lang2fhir_and_search with the schedule identifier to check available Slot resources\n"
-        "5. FILTER OUT any slots with start times in the past (before today's date)\n"
+        "4. ALSO EXTRACT any location reference from the Schedule (this will be needed for appointment creation)\n"
+        "5. FINALLY use lang2fhir_and_search with the schedule identifier to check available Slot resources\n"
+        "6. FILTER OUT any slots with start times in the past (before today's date)\n"
         "   - IMPORTANT: Parse dates correctly by extracting YYYY-MM-DD from the slot start time\n"
         "   - COMPARE dates using datetime objects, not string comparison\n"
         "   - Today's date is " + datetime.now().strftime("%Y-%m-%d") + "\n"
         "   - If a slot date is EXACTLY " + datetime.now().strftime("%Y-%m-%d") + ", INCLUDE it\n"
         "   - ALWAYS INCLUDE slots from today or future dates\n"
-        "6. When asked about 'next week' or other relative timeframes, ONLY show slots within that specific time period\n"
-        "7. SORT available slots by date and time to present them in chronological order\n"
-        "8. REPORT back available times based on the filtered Slot resources or indicate if no slots are available\n"
-        "9. This ensures accurate and relevant scheduling information based on the provider's actual future availability\n\n"
+        "7. When asked about 'next week' or other relative timeframes, ONLY show slots within that specific time period\n"
+        "8. SORT available slots by date and time to present them in chronological order\n"
+        "9. REPORT back available times based on the filtered Slot resources or indicate if no slots are available\n"
+        "10. SAVE the location information from the Schedule for use in future appointment creation\n"
+        "11. This ensures accurate scheduling information and collects the location needed for appointment creation\n\n"
         
         "IMPORTANT SAFETY CHECK: When multiple patients match a name search:\n"
         "1. PRESENT all matching patients with their identifiers (ID, DOB, etc.)\n"
@@ -426,6 +486,17 @@ root_agent = Agent(
         "For example, if user says 'Record that Bob has diabetes':\n"
         "  - First: Use lang2fhir_and_search with 'Find patient Bob' to get Bob's ID\n"
         "  - Then: Use lang2fhir_and_create with the correct patient ID to create the condition\n\n"
+        
+        "For example, if user says 'Book an appointment for John with Dr. Smith tomorrow':\n"
+        "  - First: Use lang2fhir_and_search with 'Find patient John' to get John's ID\n"
+        "  - Next: Use lang2fhir_and_search with 'Find practitioner Dr. Smith' to get Dr. Smith's ID\n"
+        "  - Next: Use lang2fhir_and_search with 'Find location for Dr. Smith' to get a location ID\n"
+        "  - Finally: Use lang2fhir_and_create with:\n"
+        "    * patient_id=John's ID\n"
+        "    * practitioner_id=Dr. Smith's ID\n"
+        "    * location_id=Location ID\n"
+        "    * profile='appointment'\n"
+        "    * description='Appointment for John with Dr. Smith tomorrow at 2 PM for check-up'\n\n"
         
         "For lang2fhir_and_create: When creating resources, select the most appropriate profile based on the description. "
         "For example:\n"
