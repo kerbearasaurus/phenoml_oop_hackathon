@@ -139,14 +139,12 @@ def lang2fhir_and_create(
                 
                 # For Canvas Medical FHIR server, add supportingInformation with Location reference
                 if canvas_token and not medplum_token:
-                    print("[DEBUG] Canvas FHIR server requires location in supportingInformation for appointments")
                     
                     # Add location reference if provided
                     if location_id:
                         fhir_resource["supportingInformation"] = [
                             {"reference": f"Location/{location_id}"}
                         ]
-                        print(f"[DEBUG] Added Location/{location_id} to supportingInformation")
                     else:
                         print("[WARNING] Canvas requires location_id for appointments")
 
@@ -163,7 +161,7 @@ def lang2fhir_and_create(
                     }
         
         # Print the final resource
-        print(f"[DEBUG] Final FHIR resource to create: {json.dumps(fhir_resource, indent=2)}")
+        # print(f"[DEBUG] Final FHIR resource to create: {json.dumps(fhir_resource, indent=2)}")
         
         # Step 3: Create the resource on the FHIR server
         fhir_headers = {
@@ -213,7 +211,6 @@ def lang2fhir_and_search(
         dict: Search result with status and search results or error message.
     """
     try:
-        print(f"\n[DEBUG] Search query: {natural_language_query}")
         
         # Get tokens from environment variables
         phenoml_token = os.environ.get("PHENOML_TOKEN")
@@ -241,16 +238,12 @@ def lang2fhir_and_search(
             fhir_server_url = "https://api.medplum.com/fhir/R4"
             fhir_access_token = medplum_token
 
-        print(f"[DEBUG] FHIR server URL: {fhir_server_url}")
 
         # Step 1: Convert natural language to FHIR search parameters using lang2fhir
         lang2fhir_url = "https://experiment.app.pheno.ml/lang2fhir/search"
         lang2fhir_payload = {
             "text": natural_language_query
         }
-
-        print(f"[DEBUG] lang2fhir API call: POST {lang2fhir_url}")
-        print(f"[DEBUG] lang2fhir payload: {json.dumps(lang2fhir_payload, indent=2)}")
 
         lang2fhir_headers = {
             "Authorization": f"Bearer {phenoml_token}",
@@ -261,12 +254,11 @@ def lang2fhir_and_search(
         # Call lang2fhir API to get FHIR search parameters
         lang2fhir_response = requests.post(lang2fhir_url, json=lang2fhir_payload, headers=lang2fhir_headers)
         
-        print(f"[DEBUG] lang2fhir status code: {lang2fhir_response.status_code}")
-        try:
-            print(f"[DEBUG] lang2fhir response: {json.dumps(lang2fhir_response.json(), indent=2)}")
-        except Exception as e:
-            print(f"[DEBUG] lang2fhir raw response: {lang2fhir_response.text}")
-            print(f"[DEBUG] Error parsing JSON: {str(e)}")
+        # try:
+        #     print(f"[DEBUG] lang2fhir response: {json.dumps(lang2fhir_response.json(), indent=2)}")
+        # except Exception as e:
+        #     print(f"[DEBUG] lang2fhir raw response: {lang2fhir_response.text}")
+        #     print(f"[DEBUG] Error parsing JSON: {str(e)}")
         
         lang2fhir_response.raise_for_status()
         
@@ -342,9 +334,7 @@ def lang2fhir_and_search(
             search_params_str = '&'.join(fixed_parts)
             fhir_url = f"{fhir_url}?{search_params_str}"
         
-        
-        print(f"[DEBUG] Final FHIR API call: GET {fhir_url}")
-        
+                
         fhir_headers = {
             "Authorization": f"Bearer {fhir_access_token}",
             "Content-Type": "application/json"
@@ -353,13 +343,12 @@ def lang2fhir_and_search(
         # Execute the search on the FHIR server
         fhir_response = requests.get(fhir_url, headers=fhir_headers)
         
-        print(f"[DEBUG] FHIR server status code: {fhir_response.status_code}")
-        try:
-            response_json = fhir_response.json()
-            print(f"[DEBUG] FHIR server response entries: {len(response_json.get('entry', []))}")
-        except Exception as e:
-            print(f"[DEBUG] FHIR server raw response: {fhir_response.text[:500]}")  # Limit to first 500 chars
-            print(f"[DEBUG] Error parsing JSON: {str(e)}")
+        # try:
+        #     response_json = fhir_response.json()
+        #     print(f"[DEBUG] FHIR server response entries: {len(response_json.get('entry', []))}")
+        # except Exception as e:
+        #     print(f"[DEBUG] FHIR server raw response: {fhir_response.text[:500]}")  # Limit to first 500 chars
+        #     print(f"[DEBUG] Error parsing JSON: {str(e)}")
             
         fhir_response.raise_for_status()
         
@@ -385,11 +374,6 @@ def lang2fhir_and_search(
             
             print(f"[DEBUG] Found {len(past_slots)} past slots and {len(future_slots)} future slots")
             
-            if past_slots:
-                print("[DEBUG] Sample past slots:")
-                for slot in past_slots[:3]:  # Show up to 3 past slots
-                    print(f"  - {slot}")
-            
             if future_slots:
                 print("[DEBUG] Sample future slots:")
                 for slot in future_slots[:3]:  # Show up to 3 future slots
@@ -402,11 +386,7 @@ def lang2fhir_and_search(
             "resource_type_used": detected_resource_type
         }
     except Exception as e:
-        print(f"[DEBUG] Error in lang2fhir_and_search: {str(e)}")
-        if hasattr(e, 'response') and e.response:
-            print(f"[DEBUG] Response status code: {e.response.status_code}")
-            print(f"[DEBUG] Response content: {e.response.text[:500]}")  # Limit to first 500 chars
-            
+
         return {
             "status": "error",
             "error_message": f"Search failed: {str(e)}"
