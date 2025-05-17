@@ -25,12 +25,23 @@ Demo of an agent that you can build using this repo!
 
 1. Clone this repository
 
-2. Install dependencies
+2. Create your virtual environment
+   ```bash
+   python -m venv .venv
+   ```
+
+3. Activate (each new terminal) for macOS/Linux
+
+   ```bash
+   source .venv/bin/activate
+   ```
+
+4. Install dependencies
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Authenticate and set up environment variables:
+5. Authenticate and set up environment variables:
 
    a. **Set .env credentials**:
    Open the file `agents/.env` in your text editor of choice and set your
@@ -40,7 +51,7 @@ EMR you have chosen.
    b. **Obtain PhenoML Token**:
    ```bash
    # Run the PhenoML authentication script with --save flag to save to .env automatically. Assumes your credentials are in your .env already 
-   python auth/phenoml_auth.py --save
+   python3 auth/phenoml_auth.py --save
    ```
 
    c. **Obtain Medplum Token** (if using Medplum):
@@ -56,6 +67,12 @@ EMR you have chosen.
    python3 auth/canvas_auth.py --save
 
    ```
+
+6. Run your agent! 
+   ```bash
+   adk run multi_lang2fhir_agent
+   ```
+You can also run your agent in a dev UI or spin up an api server. Check out google's ADK [quick start](https://google.github.io/adk-docs/get-started/quickstart/#run-your-agent)
 
 ## PhenoML lang2fhir API
 

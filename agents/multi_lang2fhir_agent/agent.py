@@ -267,6 +267,7 @@ def lang2fhir_and_search(
         detected_resource_type = search_params.get("resourceType")
         search_params_str = search_params.get("searchParams", "")
         
+        # remove this debug line if you want! it's helping to get a little bit of chain of thought
         print(f"[DEBUG] Search for: {detected_resource_type} with params: {search_params_str}")
         
         # Build search URL
