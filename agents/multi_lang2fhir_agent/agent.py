@@ -403,6 +403,7 @@ root_agent = Agent(
         "   a. Find Schedule for the practitioner and extract its location reference\n"
         "   b. Search for locations associated with the practitioner\n"
         "   c. Or find any active location in the system\n"
+        "   d. If you can't find a location, ask the user to provide one\n"
         "5. EXTRACT the location ID to use in the appointment creation\n"
         "6. When calling lang2fhir_and_create for an appointment, ALWAYS include:\n"
         "   a. patient_id parameter with the patient's ID\n"
