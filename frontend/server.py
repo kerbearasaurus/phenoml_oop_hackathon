@@ -94,7 +94,7 @@ def chat():
         # Create a session if it doesn't exist
         # create a random id
         session_id = str(uuid.uuid4())
-        session_url = f"{ADK_API_URL}/apps/multi_lang2fhir_agent/users/default/sessions/{session_id}"
+        session_url = f"http://0.0.0.0:8000/apps/multi_lang2fhir_agent/users/u_123/sessions/{session_id}"
         logger.debug(f"Creating session at {session_url}")
         session_response = requests.post(session_url)
         if session_response.status_code != 200:
@@ -105,8 +105,8 @@ def chat():
         run_url = f"{ADK_API_URL}/run"
         run_data = {
             "app_name": "multi_lang2fhir_agent",
-            "user_id": "default",
-            "session_id": "default",
+            "user_id": "u_123",
+            "session_id": session_id,
             "new_message": {
                 "role": "user",
                 "parts": [{
