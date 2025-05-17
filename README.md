@@ -20,6 +20,7 @@ Demo of an agent that you can build using this repo!
 1. PhenoML account with access to the lang2fhir API
 2. Medplum or Canvas Medical account (or other FHIR server) for storing created resources and executing FHIR searches
 3. Python 3.8+
+4. Gemini API access: sign up for a Gemini API key [here](https://ai.google.dev/gemini-api/docs/api-key) 
 
 ## Setup
 
