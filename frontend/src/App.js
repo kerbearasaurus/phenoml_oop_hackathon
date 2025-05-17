@@ -1,11 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PaperAirplaneIcon } from '@heroicons/react/24/solid';
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
+import { MicrophoneIcon } from '@heroicons/react/24/solid';
 
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition
+  } = useSpeechRecognition();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -14,6 +23,12 @@ function App() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (transcript) {
+      setInput(transcript);
+    }
+  }, [transcript]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,6 +60,15 @@ function App() {
       setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${error.message}` }]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const toggleListening = () => {
+    if (listening) {
+      SpeechRecognition.stopListening();
+    } else {
+      resetTranscript();
+      SpeechRecognition.startListening({ continuous: true });
     }
   };
 
@@ -98,6 +122,18 @@ function App() {
             className="flex-1 rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             disabled={isLoading}
           />
+          {browserSupportsSpeechRecognition && (
+            <button
+              type="button"
+              onClick={toggleListening}
+              disabled={isLoading}
+              className={`rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 ${
+                listening ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <MicrophoneIcon className="h-5 w-5" />
+            </button>
+          )}
           <button
             type="submit"
             disabled={isLoading}
