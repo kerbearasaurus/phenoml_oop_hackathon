@@ -25,16 +25,21 @@ def medplum_authenticate(client_id=None, client_secret=None):
     # Use provided credentials or get from environment
     client_id = client_id or os.environ.get("MEDPLUM_CLIENT_ID")
     client_secret = client_secret or os.environ.get("MEDPLUM_CLIENT_SECRET")
+    medplum_url = os.environ.get("MEDPLUM_BASE_URL")
     
     if not client_id or not client_secret:
         return {
             "status": "error",
             "error_message": "Medplum credentials not found. Please provide client ID/secret or set environment variables."
         }
-    
+
+    if not medplum_url:
+        # if no medplum_url is provided, use the default api.medplum.com
+        medplum_url = "https://api.medplum.com"
+
     try:
         # Authenticate with Medplum
-        auth_url = "https://api.medplum.com/oauth2/token"
+        auth_url = f"{medplum_url}/oauth2/token"
         payload = {
             "grant_type": "client_credentials",
             "client_id": client_id,

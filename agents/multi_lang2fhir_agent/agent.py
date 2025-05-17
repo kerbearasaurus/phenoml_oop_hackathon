@@ -80,7 +80,11 @@ def lang2fhir_and_create(
             fhir_server_url = f"https://fumage-{canvas_instance_identifier}.canvasmedical.com"
             fhir_access_token = canvas_token
         if medplum_token and not canvas_token:
-            fhir_server_url = "https://api.medplum.com/fhir/R4"
+            base_url = os.environ.get("MEDPLUM_BASE_URL")
+            if not base_url:
+                # if no base_url is provided, use the default api.medplum.com
+                base_url = "https://api.medplum.com"
+            fhir_server_url = f"{base_url}/fhir/R4"
             fhir_access_token = medplum_token
         
         # Validate resource type (profile)
@@ -137,7 +141,7 @@ def lang2fhir_and_create(
                 # Ensure appointment has a status
                 fhir_resource["status"] = "booked"
                 
-                # For Canvas Medical FHIR server, add supportingInformation with Location reference
+                # For Canvas Medical FHIR server, add supportingInformation with Location reference. this is a hack for the hackathon, adding support for Canvas FHIR profiles on lang2FHIR
                 if canvas_token and not medplum_token:
                     
                     # Add location reference if provided
@@ -159,9 +163,6 @@ def lang2fhir_and_create(
                     fhir_resource["patient"] = {
                         "reference": f"Patient/{patient_id}"
                     }
-        
-        # Print the final resource
-        # print(f"[DEBUG] Final FHIR resource to create: {json.dumps(fhir_resource, indent=2)}")
         
         # Step 3: Create the resource on the FHIR server
         fhir_headers = {
@@ -235,7 +236,11 @@ def lang2fhir_and_search(
             fhir_server_url = f"https://fumage-{canvas_instance_identifier}.canvasmedical.com"
             fhir_access_token = canvas_token
         if medplum_token and not canvas_token:
-            fhir_server_url = "https://api.medplum.com/fhir/R4"
+            base_url = os.environ.get("MEDPLUM_BASE_URL")
+            if not base_url:
+                # if no base_url is provided, use the default api.medplum.com
+                base_url = "https://api.medplum.com"
+            fhir_server_url = f"{base_url}/fhir/R4"
             fhir_access_token = medplum_token
 
 
@@ -254,12 +259,6 @@ def lang2fhir_and_search(
         # Call lang2fhir API to get FHIR search parameters
         lang2fhir_response = requests.post(lang2fhir_url, json=lang2fhir_payload, headers=lang2fhir_headers)
         
-        # try:
-        #     print(f"[DEBUG] lang2fhir response: {json.dumps(lang2fhir_response.json(), indent=2)}")
-        # except Exception as e:
-        #     print(f"[DEBUG] lang2fhir raw response: {lang2fhir_response.text}")
-        #     print(f"[DEBUG] Error parsing JSON: {str(e)}")
-        
         lang2fhir_response.raise_for_status()
         
         search_params = lang2fhir_response.json()
@@ -267,6 +266,8 @@ def lang2fhir_and_search(
         # Extract resource type and search parameters from lang2fhir response
         detected_resource_type = search_params.get("resourceType")
         search_params_str = search_params.get("searchParams", "")
+        
+        print(f"[DEBUG] Search for: {detected_resource_type} with params: {search_params_str}")
         
         # Build search URL
         fhir_url = f"{fhir_server_url}/{detected_resource_type}"
@@ -330,9 +331,12 @@ def lang2fhir_and_search(
                 else:
                     fixed_parts.append(part)
             
-            # Reconstruct the query string
+            # Reconstruct the query string and add pagination, this is a hack for the hackathon lol, ideally you'd want to handle pagination properly
             search_params_str = '&'.join(fixed_parts)
-            fhir_url = f"{fhir_url}?{search_params_str}"
+            fhir_url = f"{fhir_url}?{search_params_str}&_count=250"
+        else:
+            # No search params, just add pagination
+            fhir_url = f"{fhir_url}?_count=250"
         
                 
         fhir_headers = {
@@ -343,41 +347,9 @@ def lang2fhir_and_search(
         # Execute the search on the FHIR server
         fhir_response = requests.get(fhir_url, headers=fhir_headers)
         
-        # try:
-        #     response_json = fhir_response.json()
-        #     print(f"[DEBUG] FHIR server response entries: {len(response_json.get('entry', []))}")
-        # except Exception as e:
-        #     print(f"[DEBUG] FHIR server raw response: {fhir_response.text[:500]}")  # Limit to first 500 chars
-        #     print(f"[DEBUG] Error parsing JSON: {str(e)}")
-            
         fhir_response.raise_for_status()
         
         search_results = fhir_response.json()
-        
-        # If this is a Slot search, check for past slots, this additional debug logic seems to be helping the agent understand the correct slots to look at in scheduling use cases
-        if detected_resource_type == "Slot" and "entry" in search_results:
-            today = datetime.now().strftime("%Y-%m-%d")
-            print(f"[DEBUG] Today's date: {today}")
-            
-            past_slots = []
-            future_slots = []
-            
-            for entry in search_results.get("entry", []):
-                if "resource" in entry and entry["resource"].get("resourceType") == "Slot":
-                    slot = entry["resource"]
-                    start_date = slot.get("start", "").split("T")[0]  # Extract YYYY-MM-DD
-                    
-                    if start_date < today:
-                        past_slots.append(f"ID: {slot.get('id')}, Start: {slot.get('start')}")
-                    else:
-                        future_slots.append(f"ID: {slot.get('id')}, Start: {slot.get('start')}")
-            
-            print(f"[DEBUG] Found {len(past_slots)} past slots and {len(future_slots)} future slots")
-            
-            if future_slots:
-                print("[DEBUG] Sample future slots:")
-                for slot in future_slots[:3]:  # Show up to 3 future slots
-                    print(f"  - {slot}")
         
         return {
             "status": "success",
@@ -431,6 +403,7 @@ root_agent = Agent(
         "   a. Find Schedule for the practitioner and extract its location reference\n"
         "   b. Search for locations associated with the practitioner\n"
         "   c. Or find any active location in the system\n"
+        "   d. If you can't find a location, ask the user to provide one\n"
         "5. EXTRACT the location ID to use in the appointment creation\n"
         "6. When calling lang2fhir_and_create for an appointment, ALWAYS include:\n"
         "   a. patient_id parameter with the patient's ID\n"
