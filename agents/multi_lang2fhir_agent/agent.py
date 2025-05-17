@@ -367,113 +367,6 @@ def lang2fhir_and_search(
         }
 
 
-def lang2fhir_document_upload(
-    image_path: str,
-    profile: str,
-    patient_id: Optional[str] = None,
-    version: str = "R4"
-) -> dict:
-    """Uploads an image file and converts it to a FHIR document.
-    
-    Args:
-        image_path (str): Path to the image file to be uploaded.
-        profile (str): The specific FHIR profile to use.
-            Must be one of the profiles defined in FHIR_PROFILES.
-        patient_id (str, optional): The patient ID to associate this document with.
-            If provided, a subject reference will be added to the document.
-        version (str, optional): FHIR version to use. Defaults to "R4".
-        
-    Returns:
-        dict: Response from the document processing API with FHIR resource or error message.
-    """
-    try:
-        import base64
-        
-        # Get token from environment variable
-        phenoml_token = os.environ.get("PHENOML_TOKEN")
-        
-        if not phenoml_token:
-            return {
-                "status": "error",
-                "error_message": "PHENOML_TOKEN environment variable not set"
-            }
-        
-        # Validate profile
-        if profile not in FHIR_PROFILES:
-            return {
-                "status": "error",
-                "error_message": f"Invalid profile: {profile}. Valid profiles are: {', '.join(FHIR_PROFILES.keys())}"
-            }
-        
-        # Get the base FHIR resource type for this profile
-        base_resource_type = FHIR_PROFILES.get(profile)
-            
-        # Read and encode the image file
-        with open(image_path, 'rb') as image_file:
-            encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
-            
-        # Determine the file type based on file extension
-        file_extension = image_path.split('.')[-1].lower()
-        file_type_mapping = {
-            'png': 'image/png',
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'pdf': 'application/pdf',
-            'tiff': 'image/tiff',
-            'tif': 'image/tiff'
-        }
-        
-        file_type = file_type_mapping.get(file_extension, 'application/octet-stream')
-        
-        # Create payload for the document API
-        payload = {
-            "resource": profile,
-            "fileType": file_type,
-            "version": version,
-            "content": encoded_image
-        }
-        
-        # Set up request to lang2fhir document API
-        document_url = "https://experiment.app.pheno.ml/lang2fhir/document"
-        headers = {
-            "Authorization": f"Bearer {phenoml_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
-        
-        # Send request to process the document
-        response = requests.post(document_url, json=payload, headers=headers)
-        
-        response.raise_for_status()
-        
-        fhir_resource = response.json()
-        
-        # Add patient reference to the resource if patient_id is provided
-        if patient_id and base_resource_type.lower() != "patient":
-            # Different resources may use different fields for patient references
-            if base_resource_type.lower() in ["encounter", "appointmentresponse", "appointmentrecurrence"]:
-                fhir_resource["patient"] = {
-                    "reference": f"Patient/{patient_id}"
-                }
-            else:
-                # Most resources use subject for patient reference
-                fhir_resource["subject"] = {
-                    "reference": f"Patient/{patient_id}"
-                }
-        
-        return {
-            "status": "success",
-            "document_result": fhir_resource,
-            "profile_used": profile,
-            "base_resource_type": base_resource_type
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "error_message": f"Document processing failed: {str(e)}"
-        }
-
-
 root_agent = Agent(
     name="phenoml_fhir_agent",
     model="gemini-2.0-flash",
@@ -575,16 +468,6 @@ root_agent = Agent(
         "- For basic measurements: 'simple-observation'\n"
         "- For vital signs like blood pressure: 'vital-signs'\n\n"
         
-        "For lang2fhir_document_upload: When uploading documents or images for FHIR conversion:\n"
-        "- Provide the full path to the image file\n"
-        "- ALWAYS specify the profile you want to use (e.g., 'invoice', 'patient', etc.)\n"
-        "- Optionally provide a patient_id to associate the document with a specific patient\n"
-        "- If patient_id is provided, a subject reference will be automatically added\n"
-        "- Valid profiles are the same as those used for lang2fhir_and_create\n"
-        "- The function will automatically detect file type based on extension\n"
-        "- Supported formats include PNG, JPEG, PDF, and TIFF\n"
-        "- The document will be processed and converted to a FHIR resource\n\n"
-        
         "Examples of translating user intent to FHIR actions:\n"
         "- 'Book an appointment for John with Dr. Smith tomorrow':\n"
         "   1) Find John's ID with lang2fhir_and_search\n" 
@@ -600,21 +483,10 @@ root_agent = Agent(
         "   1) Find user's ID with lang2fhir_and_search\n"
         "   2) Search for Appointment resources with that ID\n\n"
         
-        "- 'Upload this invoice from /path/to/invoice.png':\n"
-        "   1) Use lang2fhir_document_upload with the provided file path\n"
-        "   2) MUST specify the profile parameter (e.g., profile='invoice')\n"
-        "   3) The document will be processed and converted to the appropriate FHIR resource\n\n"
-        
-        "- 'Upload this invoice from /path/to/invoice.png for patient John':\n"
-        "   1) First use lang2fhir_and_search to find patient John and get their ID\n"
-        "   2) Then use lang2fhir_document_upload with the file path, profile='invoice', and patient_id\n"
-        "   3) The document will be processed and linked to the patient's record\n\n"
-        
         "Always respond to the user's intent, not just explaining FHIR concepts."
     ),
     tools=[
         lang2fhir_and_create,
         lang2fhir_and_search,
-        lang2fhir_document_upload,
     ],
 )
