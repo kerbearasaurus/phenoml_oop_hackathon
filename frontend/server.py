@@ -6,7 +6,7 @@ import logging
 import requests
 from dotenv import load_dotenv
 from flask_cors import CORS, cross_origin
-
+import uuid
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -92,7 +92,9 @@ def chat():
         logger.debug(f"Environment variables being used: {env_vars}")
         
         # Create a session if it doesn't exist
-        session_url = f"{ADK_API_URL}/apps/multi_lang2fhir_agent/users/default/sessions/default"
+        # create a random id
+        session_id = str(uuid.uuid4())
+        session_url = f"{ADK_API_URL}/apps/multi_lang2fhir_agent/users/default/sessions/{session_id}"
         logger.debug(f"Creating session at {session_url}")
         session_response = requests.post(session_url)
         if session_response.status_code != 200:

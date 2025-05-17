@@ -173,3 +173,6 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 agents/.env
+
+# Frontend
+frontend/node_modules/
