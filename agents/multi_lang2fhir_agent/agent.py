@@ -80,7 +80,11 @@ def lang2fhir_and_create(
             fhir_server_url = f"https://fumage-{canvas_instance_identifier}.canvasmedical.com"
             fhir_access_token = canvas_token
         if medplum_token and not canvas_token:
-            fhir_server_url = "https://api.medplum.com/fhir/R4"
+            base_url = os.environ.get("MEDPLUM_BASE_URL")
+            if not base_url:
+                # if no base_url is provided, use the default api.medplum.com
+                base_url = "https://api.medplum.com"
+            fhir_server_url = f"{base_url}/fhir/R4"
             fhir_access_token = medplum_token
         
         # Validate resource type (profile)
@@ -232,7 +236,11 @@ def lang2fhir_and_search(
             fhir_server_url = f"https://fumage-{canvas_instance_identifier}.canvasmedical.com"
             fhir_access_token = canvas_token
         if medplum_token and not canvas_token:
-            fhir_server_url = "https://api.medplum.com/fhir/R4"
+            base_url = os.environ.get("MEDPLUM_BASE_URL")
+            if not base_url:
+                # if no base_url is provided, use the default api.medplum.com
+                base_url = "https://api.medplum.com"
+            fhir_server_url = f"{base_url}/fhir/R4"
             fhir_access_token = medplum_token
 
 
