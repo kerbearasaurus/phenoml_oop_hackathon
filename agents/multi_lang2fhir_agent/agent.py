@@ -559,16 +559,193 @@ def create_todoist_task(content: str,
         }
 
 
+def find_nearby_places(query: str, 
+                       lat: float, 
+                       lng: float, 
+                       radius: int = 5000, 
+                       place_type: Optional[str] = None) -> dict:
+    """Finds places near a location using Google Maps Places API.
+
+    Args:
+        query (str): Search query (e.g., "hospitals", "pharmacy", "restaurants").
+        lat (float): Latitude of the center point to search around.
+        lng (float): Longitude of the center point to search around.
+        radius (int, optional): Search radius in meters. Defaults to 5000.
+        place_type (str, optional): Type of place to search for (e.g., "hospital", "pharmacy").
+
+    Returns:
+        dict: Result with status and places or error message.
+    """
+    try:
+        # Get Google Maps API key from environment variables
+        maps_api_key = os.environ.get("GOOGLE_MAPS_API_KEY")
+
+        if not maps_api_key:
+            return {
+                "status": "error",
+                "error_message": "GOOGLE_MAPS_API_KEY environment variable not set"
+            }
+
+        # Set Google Maps Places API URL
+        places_api_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+        
+        # Prepare parameters
+        params = {
+            "key": maps_api_key,
+            "location": f"{lat},{lng}",
+            "radius": radius,
+            "keyword": query,
+        }
+        
+        # Add place type if provided
+        if place_type:
+            params["type"] = place_type
+            
+        # Execute the request to the Google Maps Places API
+        places_response = requests.get(places_api_url, params=params)
+        places_response.raise_for_status()
+        
+        places_results = places_response.json()
+        
+        # Format results for easier reading
+        formatted_places = []
+        if places_results.get("status") == "OK":
+            for place in places_results.get("results", []):
+                formatted_places.append({
+                    "name": place.get("name"),
+                    "address": place.get("vicinity"),
+                    "location": place.get("geometry", {}).get("location", {}),
+                    "place_id": place.get("place_id"),
+                    "rating": place.get("rating"),
+                    "types": place.get("types", []),
+                    "open_now": place.get("opening_hours", {}).get("open_now")
+                })
+                
+        return {
+            "status": "success",
+            "query": query,
+            "location": {"lat": lat, "lng": lng},
+            "radius": radius,
+            "places": formatted_places
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error_message": f"Failed to find nearby places: {str(e)}"
+        }
+
+
+def get_directions(origin_lat: float, 
+                   origin_lng: float, 
+                   destination_lat: float, 
+                   destination_lng: float,
+                   mode: str = "driving",
+                   waypoints: Optional[List[Dict[str, float]]] = None) -> dict:
+    """Gets directions between two points using Google Maps Directions API.
+
+    Args:
+        origin_lat (float): Latitude of the starting point.
+        origin_lng (float): Longitude of the starting point.
+        destination_lat (float): Latitude of the destination.
+        destination_lng (float): Longitude of the destination.
+        mode (str, optional): Travel mode (driving, walking, bicycling, transit). Defaults to "driving".
+        waypoints (List[Dict[str, float]], optional): List of waypoints as {lat, lng} dictionaries.
+
+    Returns:
+        dict: Result with status and directions or error message.
+    """
+    try:
+        # Get Google Maps API key from environment variables
+        maps_api_key = os.environ.get("GOOGLE_MAPS_API_KEY")
+
+        if not maps_api_key:
+            return {
+                "status": "error",
+                "error_message": "GOOGLE_MAPS_API_KEY environment variable not set"
+            }
+
+        # Set Google Maps Directions API URL
+        directions_api_url = "https://maps.googleapis.com/maps/api/directions/json"
+        
+        # Validate mode
+        valid_modes = ["driving", "walking", "bicycling", "transit"]
+        if mode not in valid_modes:
+            return {
+                "status": "error",
+                "error_message": f"Invalid mode: {mode}. Valid modes are: {', '.join(valid_modes)}"
+            }
+        
+        # Prepare parameters
+        params = {
+            "key": maps_api_key,
+            "origin": f"{origin_lat},{origin_lng}",
+            "destination": f"{destination_lat},{destination_lng}",
+            "mode": mode,
+        }
+        
+        # Add waypoints if provided
+        if waypoints:
+            waypoint_str = "|".join([f"{wp['lat']},{wp['lng']}" for wp in waypoints])
+            params["waypoints"] = waypoint_str
+            
+        # Execute the request to the Google Maps Directions API
+        directions_response = requests.get(directions_api_url, params=params)
+        directions_response.raise_for_status()
+        
+        directions_results = directions_response.json()
+        
+        # Format results for easier reading
+        formatted_directions = {
+            "status": directions_results.get("status"),
+            "routes": []
+        }
+        
+        if directions_results.get("status") == "OK":
+            for route in directions_results.get("routes", []):
+                route_info = {
+                    "summary": route.get("summary", ""),
+                    "distance": route.get("legs", [{}])[0].get("distance", {}).get("text", ""),
+                    "duration": route.get("legs", [{}])[0].get("duration", {}).get("text", ""),
+                    "steps": []
+                }
+                
+                # Extract steps for the first leg
+                for step in route.get("legs", [{}])[0].get("steps", []):
+                    route_info["steps"].append({
+                        "instruction": step.get("html_instructions", ""),
+                        "distance": step.get("distance", {}).get("text", ""),
+                        "duration": step.get("duration", {}).get("text", "")
+                    })
+                    
+                formatted_directions["routes"].append(route_info)
+                
+        return {
+            "status": "success",
+            "origin": {"lat": origin_lat, "lng": origin_lng},
+            "destination": {"lat": destination_lat, "lng": destination_lng},
+            "mode": mode,
+            "directions": formatted_directions
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error_message": f"Failed to get directions: {str(e)}"
+        }
+
+
 root_agent = Agent(
     name="phenoml_fhir_agent",
     model="gemini-2.0-flash",
     description=
     ("Agent to convert natural language to FHIR resources and queries using PhenoML lang2fhir API, "
-     "and manage Todoist tasks."),
+     "manage Todoist tasks, and provide location-based services via Google Maps API."),
     instruction=
     ("You are a helpful agent who can create FHIR resources from natural language descriptions and "
      "search for FHIR resources using natural language queries through PhenoML's lang2fhir API. "
      "You can also perform direct FHIR operations on a FHIR server and manage Todoist tasks. "
+     "Additionally, you can find nearby places and get directions using Google Maps API. "
      "Available FHIR profiles include: " + ", ".join(FHIR_PROFILES.keys()) +
      "\n\n"
      "CURRENT DATE: Today's date is " + datetime.now().strftime("%Y-%m-%d") +
@@ -583,7 +760,9 @@ root_agent = Agent(
      "   - lang2fhir_and_create: When creating new clinical data or resources\n"
      "   - list_todoist_projects: When the user needs to find out which Todoist projects are available\n"
      "   - list_todoist_tasks: When listing tasks for a Todoist project\n"
-     "   - create_todoist_task: When creating a new task in a Todoist project\n\n"
+     "   - create_todoist_task: When creating a new task in a Todoist project\n"
+     "   - find_nearby_places: When finding nearby locations like pharmacies, hospitals, etc.\n"
+     "   - get_directions: When providing directions between two locations\n\n"
      "CRITICAL PATIENT WORKFLOW: When a user mentions a patient by name (not ID):\n"
      "1. FIRST use lang2fhir_and_search to find the patient by name (e.g., 'Find patient John Smith')\n"
      "2. EXTRACT the patient ID from the search results\n"
@@ -654,6 +833,22 @@ root_agent = Agent(
      "9. REPORT back available times based on the filtered Slot resources or indicate if no slots are available\n"
      "10. SAVE the location information from the Schedule for use in future appointment creation\n"
      "11. This ensures accurate scheduling information and collects the location needed for appointment creation\n\n"
+     "GOOGLE MAPS WORKFLOW: When the user needs location-based services:\n"
+     "1. For finding nearby places (pharmacies, hospitals, restaurants, etc.):\n"
+     "   a. ASK for or DETERMINE the user's current location (latitude and longitude)\n"
+     "   b. USE find_nearby_places with the appropriate search query, location, and radius\n"
+     "   c. You can specify place_type for more targeted results (hospital, pharmacy, restaurant, etc.)\n"
+     "2. For getting directions:\n"
+     "   a. DETERMINE origin and destination coordinates\n"
+     "   b. ASK for preferred travel mode (driving, walking, transit, bicycling)\n"
+     "   c. USE get_directions to provide turn-by-turn directions\n"
+     "3. For hospital or pharmacy-related queries:\n"
+     "   a. FIRST check if the patient has a preferred facility in their FHIR record\n"
+     "   b. If not found, use find_nearby_places to locate suitable options\n"
+     "   c. For pharmacies specifically, check if there's a preferred pharmacy in medication requests\n"
+     "4. COMBINE with Todoist tasks when appropriate:\n"
+     "   a. After finding a location, offer to create a reminder task with location details\n"
+     "   b. Include address and basic directions in the task description\n\n"
      "IMPORTANT SAFETY CHECK: When multiple patients match a name search:\n"
      "1. PRESENT all matching patients with their identifiers (ID, DOB, etc.)\n"
      "2. ASK the user to confirm which specific patient they meant\n"
@@ -672,6 +867,13 @@ root_agent = Agent(
      "    * location_id=Location ID\n"
      "    * profile='appointment'\n"
      "    * description='Appointment for John with Dr. Smith tomorrow at 2 PM for check-up'\n\n"
+     "For example, if user says 'Find pharmacies near me':\n"
+     "  - Ask for current location coordinates if not already known\n"
+     "  - Use find_nearby_places with query='pharmacy', lat=user_lat, lng=user_lng\n\n"
+     "For example, if user says 'Get directions to Boston Medical Center':\n"
+     "  - First: Ask for current location coordinates if not already known\n"
+     "  - Use find_nearby_places to get the exact coordinates of Boston Medical Center\n"
+     "  - Then: Use get_directions with origin and destination coordinates\n\n"
      "For example, if user says 'Show me my Todoist projects':\n"
      "  - Use list_todoist_projects to get all projects and their IDs\n\n"
      "For example, if user says 'List my Todoist tasks for the Health project':\n"
@@ -720,5 +922,7 @@ root_agent = Agent(
         list_todoist_projects,
         list_todoist_tasks,
         create_todoist_task,
+        find_nearby_places,
+        get_directions,
     ],
 )
