@@ -7,6 +7,7 @@ function App() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const {
     transcript,
@@ -23,11 +24,22 @@ function App() {
     scrollToBottom();
   }, [messages]);
 
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  };
+
   useEffect(() => {
     if (transcript) {
       setInput(transcript);
     }
   }, [transcript]);
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [input]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -154,12 +166,12 @@ function App() {
           {suggestionPairs.map((s, i) => (
             <button
               key={i}
-              className="bg-gray-400 bg-opacity-60 text-white text-sm font-semibold rounded-full px-4 py-2 shadow-md w-full text-left flex items-center hover:bg-gray-500 transition-all pl-6"
+              className="bg-gray-400 bg-opacity-60 text-white text-sm font-semibold rounded-xl px-6 py-3 shadow-md w-full text-left flex items-start hover:bg-gray-500 transition-all"
               style={{ textShadow: '0 1px 2px rgba(0,0,0,0.08)' }}
               onClick={() => setInput(s.long)}
             >
               {s.icon && <s.icon className="h-5 w-5 mr-2 flex-shrink-0" />}
-              <span className="flex-1">{s.long}</span>
+              <span className="flex-1 whitespace-normal">{s.long}</span>
             </button>
           ))}
         </div>
@@ -205,7 +217,7 @@ function App() {
           {suggestionPairs.map((s, i) => (
             <button
               key={i}
-              className="bg-gray-200 text-[#5b7d5a] text-sm font-semibold rounded-full px-4 py-2 shadow hover:bg-gray-300 transition-all border border-gray-300 flex items-center text-left"
+              className="bg-gray-200 text-[#5b7d5a] text-sm font-semibold rounded-lg px-3 py-1 shadow hover:bg-gray-300 transition-all border border-gray-300 flex items-center text-left whitespace-normal"
               onClick={() => setInput(s.long)}
               type="button"
             >
@@ -229,12 +241,15 @@ function App() {
               <MicrophoneIcon className={`h-10 w-10 ${listening ? 'text-[#5b7d5a]' : 'text-gray-400'}`} />
             </button>
           )}
-          <input
-            type="text"
+          <textarea
+            ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              adjustTextareaHeight();
+            }}
             placeholder="Type a message or record a message here"
-            className="flex-1 bg-transparent text-lg text-gray-700 placeholder-gray-500 focus:outline-none"
+            className="flex-1 bg-transparent text-lg text-gray-700 placeholder-gray-500 focus:outline-none resize-none"
             disabled={isLoading}
           />
           <button
