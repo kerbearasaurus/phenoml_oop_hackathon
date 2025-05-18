@@ -777,12 +777,13 @@ def geocode_address(address: str) -> dict:
             # Get the first result (most relevant)
             result = geocoding_results["results"][0]
             
-            # Extract location data using new API structure
-            location = result.get("location", {})
-            lat = location.get("latitude")
-            lng = location.get("longitude")
-            formatted_address = result.get("formattedAddress")
-            place_id = result.get("placeId")
+            # Extract location data from the correct structure
+            geometry = result.get("geometry", {})
+            location = geometry.get("location", {})
+            lat = location.get("lat")
+            lng = location.get("lng")
+            formatted_address = result.get("formatted_address")
+            place_id = result.get("place_id")
             
             return {
                 "status": "success",
