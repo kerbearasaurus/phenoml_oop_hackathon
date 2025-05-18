@@ -342,6 +342,9 @@ def lang2fhir_and_search(natural_language_query: str) -> dict:
                                     resource_type = rt
                                     break
 
+                        # Special handling for Slot status parameter - change to "free"
+                        if detected_resource_type == "Slot" and name == "status" and value == "available":
+                            value = "free"
                         # If we identified a resource type, format as a proper reference
                         if resource_type:
                             fixed_parts.append(
@@ -735,6 +738,77 @@ def get_directions(origin_lat: float,
         }
 
 
+def geocode_address(address: str) -> dict:
+    """Converts an address to latitude and longitude coordinates using Google Maps Geocoding API.
+
+    Args:
+        address (str): The address to geocode (e.g., "1600 Amphitheatre Parkway, Mountain View, CA").
+
+    Returns:
+        dict: Result with status and location coordinates or error message.
+    """
+    try:
+        # Get Google Maps API key from environment variables
+        maps_api_key = os.environ.get("GOOGLE_MAPS_API_KEY")
+
+        if not maps_api_key:
+            return {
+                "status": "error",
+                "error_message": "GOOGLE_MAPS_API_KEY environment variable not set"
+            }
+
+        # Set Google Maps Geocoding API URL
+        geocoding_api_url = "https://maps.googleapis.com/maps/api/geocode/json"
+        
+        # Prepare parameters
+        params = {
+            "key": maps_api_key,
+            "address": address
+        }
+            
+        # Execute the request to the Google Maps Geocoding API
+        geocoding_response = requests.get(geocoding_api_url, params=params)
+        geocoding_response.raise_for_status()
+        
+        geocoding_results = geocoding_response.json()
+        
+        # Check if geocoding was successful
+        if geocoding_results.get("status") == "OK" and geocoding_results.get("results"):
+            # Get the first result (most relevant)
+            result = geocoding_results["results"][0]
+            
+            # Extract location data using new API structure
+            location = result.get("location", {})
+            lat = location.get("latitude")
+            lng = location.get("longitude")
+            formatted_address = result.get("formattedAddress")
+            place_id = result.get("placeId")
+            
+            return {
+                "status": "success",
+                "input_address": address,
+                "formatted_address": formatted_address,
+                "location": {
+                    "lat": lat,
+                    "lng": lng
+                },
+                "place_id": place_id
+            }
+        else:
+            return {
+                "status": "error",
+                "error_message": f"Geocoding failed: {geocoding_results.get('status')}",
+                "input_address": address
+            }
+                
+    except Exception as e:
+        return {
+            "status": "error",
+            "error_message": f"Failed to geocode address: {str(e)}",
+            "input_address": address
+        }
+
+
 root_agent = Agent(
     name="phenoml_fhir_agent",
     model="gemini-2.0-flash",
@@ -808,6 +882,7 @@ root_agent = Agent(
      "   a. patient_id parameter with the patient's ID\n"
      "   b. practitioner_id parameter with the practitioner's ID\n"
      "   c. location_id parameter with the location's ID\n"
+     "   d. the natural language description should include the full date for the appointment such as: May 18 2025 at 12pm PST\n"
      "7. Use natural language to describe the appointment clearly in the description\n"
      "8. The tool will automatically handle adding the location to supportingInformation for Canvas\n\n"
      "TODOIST WORKFLOW: When managing Todoist tasks:\n"
@@ -925,5 +1000,6 @@ root_agent = Agent(
         create_todoist_task,
         find_nearby_places,
         get_directions,
+        geocode_address,
     ],
 )
