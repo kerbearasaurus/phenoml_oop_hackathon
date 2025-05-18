@@ -279,8 +279,15 @@ function MainAppUI({
               ref={textareaRef}
               value={localInput}
               onChange={handleLocalInputChange}
-              placeholder="Type a message or record a message here"
-              className="flex-1 bg-transparent text-lg text-gray-700 placeholder-gray-500 focus:outline-none resize-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleLocalSubmit(e);
+                }
+              }}
+              rows={1}
+              className="flex-1 resize-none overflow-hidden rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-[#5b7d5a] min-h-[40px]"
+              placeholder={listening ? "Go ahead, I'm listening..." : "Type your message here..."}
               disabled={isLoading}
             />
             <button
@@ -299,8 +306,15 @@ function MainAppUI({
               ref={textareaRef}
               value={localInput}
               onChange={handleLocalInputChange}
-              placeholder="Type a message or record a message here"
-              className="flex-1 bg-transparent text-lg text-gray-700 placeholder-gray-500 focus:outline-none resize-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleLocalSubmit(e);
+                }
+              }}
+              rows={1}
+              className="flex-1 resize-none overflow-hidden rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-[#5b7d5a] min-h-[40px]"
+              placeholder="Type your message here..."
               disabled={isLoading}
             />
             <button
