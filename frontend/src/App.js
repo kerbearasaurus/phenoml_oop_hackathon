@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import { PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/solid';
+import { PaperAirplaneIcon, MicrophoneIcon, DocumentTextIcon, MapPinIcon, CurrencyDollarIcon, CalendarIcon, HomeModernIcon, ListBulletIcon, ShoppingCartIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -14,6 +14,14 @@ function App() {
     resetTranscript,
     browserSupportsSpeechRecognition
   } = useSpeechRecognition();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   useEffect(() => {
     if (transcript) {
@@ -62,30 +70,51 @@ function App() {
   // Suggested prompts (long and short forms)
   const suggestionPairs = [
     {
-      long: 'How can I create a plan after going home from the hospital',
-      short: 'Ask about post-hospital plan',
+      long: 'I need help creating a plan after going home from the hospital',
+      short: 'Create post-hospital plan',
+      icon: DocumentTextIcon,
     },
     {
-      long: 'How can I send you directions to the pharmacy to pick up your prescribed medications',
-      short: 'Ask about medications',
+      long: 'I need help getting directions to the pharmacy to pick up my prescribed medications',
+      short: 'Get directions to pharmacy',
+      icon: MapPinIcon,
     },
     {
-      long: 'How can I explain your medical bills',
-      short: 'Ask about bills',
+      long: 'I need help explaining my medical bills',
+      short: 'Explain medical bills',
+      icon: CurrencyDollarIcon,
     },
     {
-      long: "How can I schedule a doctor's appointment",
-      short: "Ask about doctor's appointment",
+      long: "I need help scheduling a doctor's appointment",
+      short: "Schedule doctor's appointment",
+      icon: CalendarIcon,
+    },
+    {
+      long: 'I need help creating a home health appointment',
+      short: 'Create home health appointment',
+      icon: HomeModernIcon,
+    },
+    {
+      long: 'I need help pulling a list of all of my grandma\'s medications',
+      short: 'Generate medication List',
+      icon: ListBulletIcon,
+    },
+    {
+      long: 'I need help creating a grocery list for my grandma',
+      short: 'Create grocery list',
+      icon: ShoppingCartIcon,
+    },
+    {
+      long: 'I need help rescheduling a doctor\'s appointment',
+      short: 'Reschedule appointment',
+      icon: ArrowPathIcon,
     },
   ];
-
-  // For backward compatibility with previous code
-  const suggestions = suggestionPairs.map(s => s.long);
 
   return (
     <div className="min-h-screen bg-[#e0e6e5] flex flex-col items-center font-sans">
       {/* Header */}
-      <div className="w-full flex items-center justify-between px-6 pt-6 pb-2">
+      <div className="sticky top-0 z-20 bg-[#e0e6e5] w-full flex items-center justify-between px-6 pt-6 pb-2">
         {/* Hamburger */}
         <button className="p-2">
           <svg width="32" height="32" fill="none" viewBox="0 0 32 32">
@@ -113,17 +142,18 @@ function App() {
         </div>
       </div>
 
-      {/* Suggestions */}
+      {/* Suggestions (long form, shown initially) */}
       {messages.length === 0 && (
         <div className="flex flex-col items-center w-full max-w-xl space-y-4 mb-8">
           {suggestionPairs.map((s, i) => (
             <button
               key={i}
-              className="bg-gray-400 bg-opacity-60 text-white text-base font-semibold rounded-full px-8 py-3 shadow-md w-full text-center hover:bg-gray-500 transition-all"
+              className="bg-gray-400 bg-opacity-60 text-white text-sm font-semibold rounded-full px-4 py-2 shadow-md w-full text-left flex items-center hover:bg-gray-500 transition-all pl-6"
               style={{ textShadow: '0 1px 2px rgba(0,0,0,0.08)' }}
               onClick={() => setInput(s.long)}
             >
-              {s.long}
+              {s.icon && <s.icon className="h-5 w-5 mr-2 flex-shrink-0" />}
+              <span className="flex-1">{s.long}</span>
             </button>
           ))}
         </div>
@@ -165,22 +195,23 @@ function App() {
 
       {/* Shorthand Suggestions Row (after chat starts) */}
       {messages.length > 0 && (
-        <div className="w-full max-w-xl flex flex-wrap gap-2 justify-center mb-4">
+        <div className="w-full max-w-xl flex flex-wrap gap-2 justify-center mb-4 px-4">
           {suggestionPairs.map((s, i) => (
             <button
               key={i}
-              className="bg-gray-200 text-[#5b7d5a] text-sm font-semibold rounded-full px-4 py-2 shadow hover:bg-gray-300 transition-all border border-gray-300"
+              className="bg-gray-200 text-[#5b7d5a] text-sm font-semibold rounded-full px-4 py-2 shadow hover:bg-gray-300 transition-all border border-gray-300 flex items-center text-left"
               onClick={() => setInput(s.long)}
               type="button"
             >
-              {s.short}
+              {s.icon && <s.icon className="h-4 w-4 mr-1 flex-shrink-0" />}
+              <span className="flex-1">{s.short}</span>
             </button>
           ))}
         </div>
       )}
 
       {/* Input Form */}
-      <form onSubmit={handleSubmit} className="w-full max-w-xl mt-auto mb-8">
+      <form onSubmit={handleSubmit} className="sticky bottom-0 z-20 bg-[#e0e6e5] w-full max-w-xl mt-auto mb-8">
         <div className="flex items-center bg-[#d3d6d6] rounded-2xl px-6 py-4 shadow-inner">
           {browserSupportsSpeechRecognition && (
             <button
