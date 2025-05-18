@@ -32,6 +32,12 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
+
+    // Stop listening when a message is sent
+    if (listening) {
+      SpeechRecognition.stopListening();
+    }
+
     const userMessage = input;
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
