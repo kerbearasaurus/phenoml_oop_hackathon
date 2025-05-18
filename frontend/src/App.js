@@ -78,20 +78,30 @@ function App() {
 
   const suggestionPairs = [
     {
-      long: 'I need help getting directions to the pharmacy to pick up my brother\'smedications',
+      long: 'I need help creating a plan after going home from the hospital',
+      short: 'Create post-hospital plan',
+      icon: DocumentTextIcon,
+    },
+    {
+      long: 'I need help getting directions to the pharmacy to pick up my brother\'s medications',
       short: 'Get directions to pharmacy',
       icon: MapPinIcon,
+    },
+    {
+      long: 'I need help explaining my medical bills',
+      short: 'Explain medical bills',
+      icon: CurrencyDollarIcon,
     },
     {
       long: "I need help scheduling a doctor's appointment for my brother",
       short: "Schedule doctor's appointment",
       icon: CalendarIcon,
     },
-    // {
-    //   long: 'I need help creating a home health appointment for my brother',
-    //   short: 'Create home health appointment',
-    //   icon: HomeModernIcon,
-    // },
+    {
+      long: 'I need help creating a home health appointment for my brother',
+      short: 'Create home health appointment',
+      icon: HomeModernIcon,
+    },
     {
       long: 'I need help pulling a list of all of my brother\'s medications',
       short: 'Generate medication List',
@@ -114,40 +124,64 @@ function App() {
   };
 
   return (
-    <Routes>
-      <Route path="/login" element={
-        <LoginScreen onLogin={() => {
-          setIsLoggedIn(true);
-          localStorage.setItem('isLoggedIn', 'true');
-          navigate('/');
-        }} />
-      } />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute
-            element={
-              <MainAppUI
-                messages={messages}
-                input={input}
-                isLoading={isLoading}
-                messagesEndRef={messagesEndRef}
-                textareaRef={textareaRef}
-                suggestionPairs={suggestionPairs}
-                transcript={transcript}
-                listening={listening}
-                browserSupportsSpeechRecognition={browserSupportsSpeechRecognition}
-                handleSubmit={handleSubmit}
-                setInput={setInput}
-                adjustTextareaHeight={adjustTextareaHeight}
-                toggleListening={toggleListening}
-              />
-            }
-          />
-        }
-      />
-      <Route path="*" element={<Navigate to={isLoggedIn ? "/" : "/login"} replace />} />
-    </Routes>
+    <div className="min-h-screen bg-[#e0e6e5] flex flex-col items-center font-sans">
+      <div className="sticky top-0 z-20 bg-[#e0e6e5] w-full flex items-center justify-between px-6 pt-6 pb-2">
+        <button className="p-2">
+          <svg width="32" height="32" fill="none" viewBox="0 0 32 32">
+            <rect y="7" width="32" height="2.5" rx="1.25" fill="#5b7d5a" />
+            <rect y="15" width="32" height="2.5" rx="1.25" fill="#5b7d5a" />
+            <rect y="23" width="32" height="2.5" rx="1.25" fill="#5b7d5a" />
+          </svg>
+        </button>
+
+        <div className="flex items-center space-x-4">
+          <img src="/static/hospital_logo.png" alt="University Hospital Logo" className="h-12 w-auto" />
+          <img src="/static/carely_logo.png" alt="Carely App Logo" className="h-12 w-auto" />
+
+          {isLoggedIn && (
+            <h1 className="text-3xl md:text-4xl font-bold text-[#5b7d5a]">Hi, I am Carely.</h1>
+          )}
+
+        </div>
+
+        <div className="w-8"></div>
+      </div>
+
+      <Routes>
+        <Route path="/login" element={
+          <LoginScreen onLogin={() => {
+            setIsLoggedIn(true);
+            localStorage.setItem('isLoggedIn', 'true');
+            navigate('/');
+          }} />
+        } />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute
+              element={
+                <MainAppUI
+                  messages={messages}
+                  input={input}
+                  isLoading={isLoading}
+                  messagesEndRef={messagesEndRef}
+                  textareaRef={textareaRef}
+                  suggestionPairs={suggestionPairs}
+                  transcript={transcript}
+                  listening={listening}
+                  browserSupportsSpeechRecognition={browserSupportsSpeechRecognition}
+                  handleSubmit={handleSubmit}
+                  setInput={setInput}
+                  adjustTextareaHeight={adjustTextareaHeight}
+                  toggleListening={toggleListening}
+                />
+              }
+            />
+          }
+        />
+        <Route path="*" element={<Navigate to={isLoggedIn ? "/" : "/login"} replace />} />
+      </Routes>
+    </div>
   );
 }
 

@@ -4,6 +4,10 @@ function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
+  React.useEffect(() => {
+    localStorage.setItem('isLoggedIn', 'false');
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     // In a real app, you would validate credentials here
@@ -14,7 +18,7 @@ function LoginScreen({ onLogin }) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#e0e6e5]">
       <div className="bg-white p-8 rounded-lg shadow-md w-96">
-        <h2 className="text-2xl font-bold text-center text-[#5b7d5a] mb-6">Login</h2>
+        <h2 className="text-2xl font-bold text-center text-[#5b7d5a] mb-6">SSO Login</h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label htmlFor="username" className="block text-gray-700 text-sm font-bold mb-2">Username</label>
@@ -45,6 +49,12 @@ function LoginScreen({ onLogin }) {
             >
               Sign In
             </button>
+          </div>
+          {/* Forgot password link */}
+          <div className="text-center mt-4">
+            <a href="#" className="inline-block align-baseline font-bold text-sm text-[#5b7d5a] hover:text-[#7bb86f]" onClick={(e) => e.preventDefault()}>
+              Forgot your password?
+            </a>
           </div>
         </form>
       </div>

@@ -30,25 +30,11 @@ function MainAppUI({
   return (
     <div className="min-h-screen bg-[#e0e6e5] flex flex-col items-center font-sans">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-[#e0e6e5] w-full flex items-center justify-between px-6 pt-6 pb-2">
-        {/* Hamburger */}
-        <button className="p-2">
-          <svg width="32" height="32" fill="none" viewBox="0 0 32 32">
-            <rect y="7" width="32" height="2.5" rx="1.25" fill="#5b7d5a" />
-            <rect y="15" width="32" height="2.5" rx="1.25" fill="#5b7d5a" />
-            <rect y="23" width="32" height="2.5" rx="1.25" fill="#5b7d5a" />
-          </svg>
-        </button>
-        <h1 className="text-3xl md:text-4xl font-bold text-[#5b7d5a] text-center flex-1">Hi, I am Carely.</h1>
-        {/* Logo */}
-        <div className="w-14 h-14 flex items-center justify-center">
-          <svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="28" cy="28" r="28" fill="#dbeee0" />
-            <path d="M28 40C28 40 38 32 38 22C38 15.3726 32.6274 10 26 10C19.3726 10 14 15.3726 14 22C14 32 28 40 28 40Z" fill="#7bb86f" />
-            <path d="M28 40C28 40 18 32 18 22C18 15.3726 23.3726 10 30 10C36.6274 10 42 15.3726 42 22C42 32 28 40 28 40Z" fill="#a3d18d" />
-          </svg>
-        </div>
-      </div>
+      {/* <div className="sticky top-0 z-20 bg-[#e0e6e5] w-full flex items-center justify-between px-6 pt-6 pb-2"> */}
+      
+        {/* Placeholder to balance space if needed */}
+        {/* <div className="w-8"></div> */}
+      {/* </div> */}
 
       {/* Sub-header */}
       <div className="w-full max-w-xl px-8 mt-2 mb-8">
