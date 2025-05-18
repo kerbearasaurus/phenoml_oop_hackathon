@@ -14,7 +14,6 @@ function App() {
   const navigate = useNavigate();
 
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -33,16 +32,15 @@ function App() {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, inputValue) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!inputValue.trim()) return;
 
     if (listening) {
       SpeechRecognition.stopListening();
     }
 
-    const userMessage = input;
-    setInput('');
+    const userMessage = inputValue;
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
     try {
@@ -152,7 +150,6 @@ function App() {
               element={
                 <MainAppUI
                   messages={messages}
-                  input={input}
                   isLoading={isLoading}
                   messagesEndRef={messagesEndRef}
                   textareaRef={textareaRef}
@@ -161,7 +158,6 @@ function App() {
                   listening={listening}
                   browserSupportsSpeechRecognition={browserSupportsSpeechRecognition}
                   handleSubmit={handleSubmit}
-                  setInput={setInput}
                   adjustTextareaHeight={adjustTextareaHeight}
                   toggleListening={toggleListening}
                 />
