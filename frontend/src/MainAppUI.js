@@ -50,6 +50,134 @@ function MainAppUI({
     setLocalInput(e.target.value);
   };
 
+  // Function to render message content with clickable links
+  const renderMessageWithLinks = (content) => {
+    // Regex to detect markdown-style links [text](url)
+    const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    
+    // First check for markdown-style links
+    if (content.match(markdownLinkRegex)) {
+      const parts = [];
+      let lastIndex = 0;
+      let match;
+      
+      // Find all markdown link matches and their positions
+      while ((match = markdownLinkRegex.exec(content)) !== null) {
+        // Add text before the link
+        if (match.index > lastIndex) {
+          parts.push({
+            type: 'text',
+            content: content.substring(lastIndex, match.index)
+          });
+        }
+        
+        const url = match[2]; // URL is in the second capture group
+        // Check if it's a Google Maps link
+        const displayText = url.includes('google.com/maps') ? 'driving directions' : match[1];
+        
+        // Add the link with appropriate display text
+        parts.push({
+          type: 'link',
+          url: url,
+          content: displayText
+        });
+        
+        lastIndex = match.index + match[0].length;
+      }
+      
+      // Add any remaining text after the last link
+      if (lastIndex < content.length) {
+        parts.push({
+          type: 'text',
+          content: content.substring(lastIndex)
+        });
+      }
+      
+      // Render each part
+      return parts.map((part, i) => {
+        if (part.type === 'text') {
+          return <span key={i}>{part.content}</span>;
+        } else {          
+          return (
+            <a 
+              key={i} 
+              href={part.url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 underline hover:text-blue-800 break-all"
+            >
+              {part.content}
+            </a>
+          );
+        }
+      });
+    }
+    
+    // Regular URL regex pattern for non-markdown links
+    const urlRegex = /(?:(?:https?|ftp):\/\/|www\.)(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[-A-Z0-9+&@#\/%=~_|$?!:,.])*(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[A-Z0-9+&@#\/%=~_|$])/gi;
+    
+    if (!content.match(urlRegex)) {
+      return content;
+    }
+    
+    // Split content by URLs
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+    
+    // Find all URL matches and their positions
+    while ((match = urlRegex.exec(content)) !== null) {
+      // Add text before the URL
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: content.substring(lastIndex, match.index)
+        });
+      }
+      
+      const url = match[0];
+      // Check if it's a Google Maps link
+      const displayText = url.includes('google.com/maps') ? 'driving directions' : 
+        (url.length > 50 ? url.substring(0, 47) + '...' : url);
+      
+      // Add the URL
+      parts.push({
+        type: 'link',
+        url: url,
+        content: displayText
+      });
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add any remaining text after the last URL
+    if (lastIndex < content.length) {
+      parts.push({
+        type: 'text',
+        content: content.substring(lastIndex)
+      });
+    }
+    
+    // Render each part
+    return parts.map((part, i) => {
+      if (part.type === 'text') {
+        return <span key={i}>{part.content}</span>;
+      } else {          
+        return (
+          <a 
+            key={i} 
+            href={part.url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 underline hover:text-blue-800 break-all"
+          >
+            {part.content}
+          </a>
+        );
+      }
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#e0e6e5] flex flex-col items-center font-sans">
       {/* Header */}
@@ -99,7 +227,7 @@ function MainAppUI({
                     : 'bg-white text-gray-800 shadow-md'
                 }`}
               >
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <p className="whitespace-pre-wrap break-words max-w-full">{renderMessageWithLinks(message.content)}</p>
               </div>
             </div>
           ))}

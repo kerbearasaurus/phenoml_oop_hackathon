@@ -645,7 +645,7 @@ def get_directions(origin_lat: float,
                    destination_lng: float,
                    mode: str = "driving",
                    waypoints: Optional[List[Dict[str, float]]] = None) -> dict:
-    """Gets directions between two points using Google Maps Directions API.
+    """Gets directions between two points by returning a Google Maps URL.
 
     Args:
         origin_lat (float): Latitude of the starting point.
@@ -656,21 +656,9 @@ def get_directions(origin_lat: float,
         waypoints (List[Dict[str, float]], optional): List of waypoints as {lat, lng} dictionaries.
 
     Returns:
-        dict: Result with status and directions or error message.
+        dict: Result with status and Google Maps URL or error message.
     """
     try:
-        # Get Google Maps API key from environment variables
-        maps_api_key = os.environ.get("GOOGLE_MAPS_API_KEY")
-
-        if not maps_api_key:
-            return {
-                "status": "error",
-                "error_message": "GOOGLE_MAPS_API_KEY environment variable not set"
-            }
-
-        # Set Google Maps Directions API URL
-        directions_api_url = "https://maps.googleapis.com/maps/api/directions/json"
-        
         # Validate mode
         valid_modes = ["driving", "walking", "bicycling", "transit"]
         if mode not in valid_modes:
@@ -679,62 +667,33 @@ def get_directions(origin_lat: float,
                 "error_message": f"Invalid mode: {mode}. Valid modes are: {', '.join(valid_modes)}"
             }
         
-        # Prepare parameters
-        params = {
-            "key": maps_api_key,
-            "origin": f"{origin_lat},{origin_lng}",
-            "destination": f"{destination_lat},{destination_lng}",
-            "mode": mode,
-        }
+        # Construct Google Maps URL
+        base_url = "https://www.google.com/maps/dir/?api=1"
+        origin_param = f"&origin={origin_lat},{origin_lng}"
+        destination_param = f"&destination={destination_lat},{destination_lng}"
+        mode_param = f"&travelmode={mode}"
         
         # Add waypoints if provided
+        waypoints_param = ""
         if waypoints:
             waypoint_str = "|".join([f"{wp['lat']},{wp['lng']}" for wp in waypoints])
-            params["waypoints"] = waypoint_str
+            waypoints_param = f"&waypoints={waypoint_str}"
             
-        # Execute the request to the Google Maps Directions API
-        directions_response = requests.get(directions_api_url, params=params)
-        directions_response.raise_for_status()
-        
-        directions_results = directions_response.json()
-        
-        # Format results for easier reading
-        formatted_directions = {
-            "status": directions_results.get("status"),
-            "routes": []
-        }
-        
-        if directions_results.get("status") == "OK":
-            for route in directions_results.get("routes", []):
-                route_info = {
-                    "summary": route.get("summary", ""),
-                    "distance": route.get("legs", [{}])[0].get("distance", {}).get("text", ""),
-                    "duration": route.get("legs", [{}])[0].get("duration", {}).get("text", ""),
-                    "steps": []
-                }
-                
-                # Extract steps for the first leg
-                for step in route.get("legs", [{}])[0].get("steps", []):
-                    route_info["steps"].append({
-                        "instruction": step.get("html_instructions", ""),
-                        "distance": step.get("distance", {}).get("text", ""),
-                        "duration": step.get("duration", {}).get("text", "")
-                    })
-                    
-                formatted_directions["routes"].append(route_info)
+        # Combine all parameters into a URL
+        maps_url = f"{base_url}{origin_param}{destination_param}{mode_param}{waypoints_param}"
                 
         return {
             "status": "success",
             "origin": {"lat": origin_lat, "lng": origin_lng},
             "destination": {"lat": destination_lat, "lng": destination_lng},
             "mode": mode,
-            "directions": formatted_directions
+            "google_maps_url": maps_url
         }
         
     except Exception as e:
         return {
             "status": "error",
-            "error_message": f"Failed to get directions: {str(e)}"
+            "error_message": f"Failed to create directions URL: {str(e)}"
         }
 
 
@@ -826,7 +785,7 @@ root_agent = Agent(
      "CURRENT DATE: Today's date is " + datetime.now().strftime("%Y-%m-%d") +
      ". Always use this as your reference point when "
      "handling relative dates like 'tomorrow' or 'next week'.\n\n"
-     "WHENEVER I SAY MY BROTHER, I am referring to Mark Scott the patient.\n\n"
+     "WHENEVER I SAY MY BROTHER, I am referring to Mark Scout the patient.\n\n"
      "IMPORTANT: When a user asks a question or makes a request, follow these steps:\n"
      "1. TRANSLATE the user's intent into relevant FHIR concepts or Todoist operations\n"
      "2. DETERMINE which FHIR resources are needed (Patient, Appointment, Condition, etc.) or if Todoist tasks need to be managed\n"
