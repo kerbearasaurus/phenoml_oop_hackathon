@@ -78,30 +78,20 @@ function App() {
 
   const suggestionPairs = [
     {
-      long: 'I need help creating a plan after going home from the hospital',
-      short: 'Create post-hospital plan',
-      icon: DocumentTextIcon,
-    },
-    {
       long: 'I need help getting directions to the pharmacy to pick up my brother\'s medications',
       short: 'Get directions to pharmacy',
       icon: MapPinIcon,
-    },
-    {
-      long: 'I need help explaining my medical bills',
-      short: 'Explain medical bills',
-      icon: CurrencyDollarIcon,
     },
     {
       long: "I need help scheduling a doctor's appointment for my brother",
       short: "Schedule doctor's appointment",
       icon: CalendarIcon,
     },
-    {
-      long: 'I need help creating a home health appointment for my brother',
-      short: 'Create home health appointment',
-      icon: HomeModernIcon,
-    },
+    // {
+    //   long: 'I need help creating a home health appointment for my brother',
+    //   short: 'Create home health appointment',
+    //   icon: HomeModernIcon,
+    // },
     {
       long: 'I need help pulling a list of all of my brother\'s medications',
       short: 'Generate medication List',
