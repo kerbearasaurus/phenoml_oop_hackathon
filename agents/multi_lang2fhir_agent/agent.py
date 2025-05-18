@@ -751,6 +751,7 @@ root_agent = Agent(
      "CURRENT DATE: Today's date is " + datetime.now().strftime("%Y-%m-%d") +
      ". Always use this as your reference point when "
      "handling relative dates like 'tomorrow' or 'next week'.\n\n"
+     "WHENEVER I SAY MY BROTHER, I am referring to Mark Scott the patient.\n\n"
      "IMPORTANT: When a user asks a question or makes a request, follow these steps:\n"
      "1. TRANSLATE the user's intent into relevant FHIR concepts or Todoist operations\n"
      "2. DETERMINE which FHIR resources are needed (Patient, Appointment, Condition, etc.) or if Todoist tasks need to be managed\n"
