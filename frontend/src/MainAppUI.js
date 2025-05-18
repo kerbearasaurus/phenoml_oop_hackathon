@@ -1,13 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { PaperAirplaneIcon, MicrophoneIcon, DocumentTextIcon, MapPinIcon, CurrencyDollarIcon, CalendarIcon, HomeModernIcon, ListBulletIcon, ShoppingCartIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
+import { BeatLoader } from 'react-spinners';
 
 function MainAppUI({
-  messages, input, isLoading, messagesEndRef, textareaRef,
+  messages, isLoading, messagesEndRef, textareaRef,
   suggestionPairs, transcript, listening, browserSupportsSpeechRecognition,
-  handleSubmit, setInput, adjustTextareaHeight, toggleListening
+  handleSubmit,
+  adjustTextareaHeight, toggleListening
 }) {
-  // Note: scrollToBottom and its useEffect are handled within MainAppUI as they relate to its rendering
+  // Local state for the input field
+  const [localInput, setLocalInput] = useState(transcript || '');
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -16,16 +20,35 @@ function MainAppUI({
     scrollToBottom();
   }, [messages]);
 
-  // Note: transcript useEffect and input useEffect are also handled within MainAppUI
+  // Update local input when transcript changes
   useEffect(() => {
     if (transcript) {
-      setInput(transcript);
+      setLocalInput(transcript);
     }
   }, [transcript]);
 
+  // Adjust height when local input changes
   useEffect(() => {
     adjustTextareaHeight();
-  }, [input]);
+  }, [localInput]);
+
+  // Local handler for form submission
+  const handleLocalSubmit = (e) => {
+    e.preventDefault();
+    if (!localInput.trim()) return;
+    handleSubmit(e, localInput);
+    setLocalInput('');
+  };
+
+  // Handle suggestion click - update local input
+  const handleSuggestionClick = (longText) => {
+    setLocalInput(longText);
+  };
+
+  // Local handler for input change
+  const handleLocalInputChange = (e) => {
+    setLocalInput(e.target.value);
+  };
 
   return (
     <div className="min-h-screen bg-[#e0e6e5] flex flex-col items-center font-sans">
@@ -52,7 +75,7 @@ function MainAppUI({
               key={i}
               className="bg-gray-400 bg-opacity-60 text-white text-sm font-semibold rounded-xl px-6 py-3 shadow-md w-full text-left flex items-start hover:bg-gray-500 transition-all"
               style={{ textShadow: '0 1px 2px rgba(0,0,0,0.08)' }}
-              onClick={() => setInput(s.long)}
+              onClick={() => handleSuggestionClick(s.long)}
             >
               {s.icon && <s.icon className="h-5 w-5 mr-2 flex-shrink-0" />}
               <span className="flex-1 whitespace-normal">{s.long}</span>
@@ -102,7 +125,7 @@ function MainAppUI({
             <button
               key={i}
               className="bg-gray-200 text-[#5b7d5a] text-sm font-semibold rounded-full px-4 py-2 shadow hover:bg-gray-300 transition-all border border-gray-300 flex items-center text-left"
-              onClick={() => setInput(s.long)}
+              onClick={() => handleSuggestionClick(s.long)}
               type="button"
             >
               {s.icon && <s.icon className="h-4 w-4 mr-1 flex-shrink-0" />}
@@ -113,9 +136,9 @@ function MainAppUI({
       )}
 
       {/* Input Form */}
-      <form onSubmit={handleSubmit} className="sticky bottom-0 z-20 bg-[#e0e6e5] w-full max-w-xl mt-auto mb-8">
-        <div className="flex items-center bg-[#d3d6d6] rounded-2xl px-6 py-4 shadow-inner">
-          {browserSupportsSpeechRecognition && (
+      {browserSupportsSpeechRecognition ? (
+        <form onSubmit={handleLocalSubmit} className="sticky bottom-0 z-20 bg-[#e0e6e5] w-full max-w-xl mt-auto mb-8">
+          <div className="flex items-center bg-[#d3d6d6] rounded-2xl px-6 py-4 shadow-inner">
             <button
               type="button"
               onClick={toggleListening}
@@ -124,27 +147,44 @@ function MainAppUI({
             >
               <MicrophoneIcon className={`h-10 w-10 ${listening ? 'text-[#5b7d5a]' : 'text-gray-400'}`} />
             </button>
-          )}
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              adjustTextareaHeight();
-            }}
-            placeholder="Type a message or record a message here"
-            className="flex-1 bg-transparent text-lg text-gray-700 placeholder-gray-500 focus:outline-none resize-none"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="ml-4 focus:outline-none"
-          >
-            <PaperAirplaneIcon className="h-10 w-10 text-gray-400 hover:text-[#5b7d5a] transition-all" />
-          </button>
-        </div>
-      </form>
+            <textarea
+              ref={textareaRef}
+              value={localInput}
+              onChange={handleLocalInputChange}
+              placeholder="Type a message or record a message here"
+              className="flex-1 bg-transparent text-lg text-gray-700 placeholder-gray-500 focus:outline-none resize-none"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !localInput.trim()}
+              className="ml-4 focus:outline-none"
+            >
+              <PaperAirplaneIcon className="h-10 w-10 text-gray-400 hover:text-[#5b7d5a] transition-all" />
+            </button>
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={handleLocalSubmit} className="sticky bottom-0 z-20 bg-[#e0e6e5] w-full max-w-xl mt-auto mb-8">
+          <div className="flex items-center bg-[#d3d6d6] rounded-2xl px-6 py-4 shadow-inner">
+            <textarea
+              ref={textareaRef}
+              value={localInput}
+              onChange={handleLocalInputChange}
+              placeholder="Type a message or record a message here"
+              className="flex-1 bg-transparent text-lg text-gray-700 placeholder-gray-500 focus:outline-none resize-none"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !localInput.trim()}
+              className="ml-4 focus:outline-none"
+            >
+              <PaperAirplaneIcon className="h-10 w-10 text-gray-400 hover:text-[#5b7d5a] transition-all" />
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
