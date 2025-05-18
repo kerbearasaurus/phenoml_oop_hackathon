@@ -88,42 +88,32 @@ function App() {
   // Suggested prompts (long and short forms)
   const suggestionPairs = [
     {
-      long: 'I need help creating a plan after going home from the hospital',
-      short: 'Create post-hospital plan',
-      icon: DocumentTextIcon,
-    },
-    {
-      long: 'I need help getting directions to the pharmacy to pick up my prescribed medications',
+      long: 'I need help getting directions to the pharmacy to pick up my brother\'smedications',
       short: 'Get directions to pharmacy',
       icon: MapPinIcon,
     },
     {
-      long: 'I need help explaining my medical bills',
-      short: 'Explain medical bills',
-      icon: CurrencyDollarIcon,
-    },
-    {
-      long: "I need help scheduling a doctor's appointment",
+      long: "I need help scheduling a doctor's appointment for my brother",
       short: "Schedule doctor's appointment",
       icon: CalendarIcon,
     },
+    // {
+    //   long: 'I need help creating a home health appointment for my brother',
+    //   short: 'Create home health appointment',
+    //   icon: HomeModernIcon,
+    // },
     {
-      long: 'I need help creating a home health appointment',
-      short: 'Create home health appointment',
-      icon: HomeModernIcon,
-    },
-    {
-      long: 'I need help pulling a list of all of my grandma\'s medications',
+      long: 'I need help pulling a list of all of my brother\'s medications',
       short: 'Generate medication List',
       icon: ListBulletIcon,
     },
     {
-      long: 'I need help creating a grocery list for my grandma',
+      long: 'I need help creating a grocery list for my brother',
       short: 'Create grocery list',
       icon: ShoppingCartIcon,
     },
     {
-      long: 'I need help rescheduling a doctor\'s appointment',
+      long: 'I need help rescheduling a doctor\'s appointment for my brother',
       short: 'Reschedule appointment',
       icon: ArrowPathIcon,
     },
@@ -154,7 +144,7 @@ function App() {
 
       {/* Sub-header */}
       <div className="w-full max-w-xl px-8 mt-2 mb-8">
-        <div className="text-[#5b7d5a] text-lg">Sally,</div>
+        <div className="text-[#5b7d5a] text-lg">Devon,</div>
         <div className="text-[#5b7d5a] text-2xl md:text-3xl font-bold leading-tight mt-1 mb-4">
           How can I help you<br />this afternoon?
         </div>
