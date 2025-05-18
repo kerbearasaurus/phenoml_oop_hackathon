@@ -23,6 +23,9 @@ else:
     load_dotenv(env_path)
     logger.debug("Environment variables loaded from .env file")
 
+# Hardcoded session ID for all conversations
+HARDCODED_SESSION_ID = "phenoml-fixed-session-id-123456"
+
 app = Flask(__name__)
 
 # Enable CORS for all routes with a very permissive configuration
@@ -75,6 +78,9 @@ def chat():
         data = request.json
         logger.debug(f"Request data: {data}")
         message = data.get('message', '')
+        # Ignore session_id from client and use hardcoded one
+        session_id = HARDCODED_SESSION_ID
+        logger.debug(f"Using hardcoded session ID: {session_id}")
         
         if not message:
             logger.error("No message provided in request")
@@ -91,15 +97,20 @@ def chat():
         env_vars = {k: bool(v) for k, v in os.environ.items() if k in ['PHENOML_TOKEN', 'MEDPLUM_TOKEN', 'CANVAS_TOKEN', 'CANVAS_INSTANCE_IDENTIFIER']}
         logger.debug(f"Environment variables being used: {env_vars}")
         
-        # Create a session if it doesn't exist
-        # create a random id
-        session_id = str(uuid.uuid4())
+        # Check if session exists, create if it doesn't
         session_url = f"http://0.0.0.0:8000/apps/multi_lang2fhir_agent/users/u_123/sessions/{session_id}"
-        logger.debug(f"Creating session at {session_url}")
-        session_response = requests.post(session_url)
-        if session_response.status_code != 200:
-            logger.error(f"Failed to create session: {session_response.text}")
-            return jsonify({'error': 'Failed to create agent session'}), 500
+        logger.debug(f"Checking if session exists at {session_url}")
+        session_check = requests.get(session_url)
+        
+        if session_check.status_code != 200:
+            logger.debug(f"Creating session at {session_url}")
+            session_response = requests.post(session_url)
+            if session_response.status_code != 200:
+                logger.error(f"Failed to create session: {session_response.text}")
+                return jsonify({'error': 'Failed to create agent session'}), 500
+            logger.debug(f"Created hardcoded session with ID: {session_id}")
+        else:
+            logger.debug(f"Using existing hardcoded session: {session_id}")
         
         # Send the message to the agent
         run_url = f"{ADK_API_URL}/run"
@@ -114,7 +125,7 @@ def chat():
                 }]
             }
         }
-        logger.debug(f"Sending message to agent at {run_url}")
+        logger.debug(f"Sending message to agent at {run_url} with session_id: {session_id}")
         run_response = requests.post(run_url, json=run_data)
         if run_response.status_code != 200:
             logger.error(f"Failed to run agent: {run_response.text}")
@@ -133,7 +144,10 @@ def chat():
             return jsonify({'error': 'No response from agent'}), 500
         
         logger.debug(f"Agent response: {final_response}")
-        return jsonify({'response': final_response})
+        return jsonify({
+            'response': final_response, 
+            'session_id': session_id
+        })
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
         logger.error(error_msg)
